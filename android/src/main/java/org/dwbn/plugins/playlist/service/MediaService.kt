@@ -1,8 +1,15 @@
 package org.dwbn.plugins.playlist.service
 
 import android.app.Notification
+import android.app.ForegroundServiceStartNotAllowedException
+import android.content.Context
+import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.content.pm.ServiceInfo
 import android.os.Build
+import androidx.core.app.ServiceCompat          // ⬅ safe wrapper
+import androidx.core.content.ContextCompat
 import com.devbrackets.android.playlistcore.components.playlisthandler.PlaylistHandler
 import com.devbrackets.android.playlistcore.service.BasePlaylistService
 import org.dwbn.plugins.playlist.App
@@ -17,6 +24,25 @@ import org.dwbn.plugins.playlist.service.MediaImageProvider.OnImageUpdatedListen
  * the application specific information required.
  */
 class MediaService : BasePlaylistService<AudioTrack, PlaylistManager>() {
+
+    /* ---------- public helper ------------------------------------------------ */
+
+    companion object {
+        /**
+         * Call this from **every** place you start or resume playback
+         * (UI button, notification action, headset media-button, …).
+         *
+         * It guarantees that the service is in the correct “may-promote”
+         * state before any later call to [runAsForeground].
+         */
+        fun ensureStarted(ctx: Context) {
+            val i = Intent(ctx, MediaService::class.java)
+            ContextCompat.startForegroundService(ctx, i)
+        }
+    }
+
+    /* ------------------------------------------------------------------------ */
+
     override fun onCreate() {
         super.onCreate()
         // Adds the audio player implementation, otherwise there's nothing to play media with
@@ -35,17 +61,33 @@ class MediaService : BasePlaylistService<AudioTrack, PlaylistManager>() {
         playlistManager.mediaPlayers.clear()
     }
 
-    override fun runAsForeground(notificationId: Int, notification: Notification) {
-        if (inForeground) {
-            return
-        }
+    private val mainHandler = Handler(Looper.getMainLooper())
 
-        inForeground = true
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-            startForeground(notificationId, notification)
-        } else {
-            startForeground(notificationId, notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+    override fun runAsForeground(
+        notificationId: Int,
+        notification: Notification
+    ) {
+        if (inForeground) return
+
+        try {
+            ServiceCompat.startForeground(
+                this,
+                notificationId,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+            )
+            inForeground = true
+
+        } catch (e: ForegroundServiceStartNotAllowedException) {
+            // Happens when the service was *recreated* by the system
+            // and nobody called ContextCompat.startForegroundService().
+            inForeground = false            // allow a second attempt
+
+            ContextCompat.startForegroundService(this, Intent(this, javaClass))
+            mainHandler.postDelayed(
+                { runAsForeground(notificationId, notification) },
+                300
+            )
         }
     }
 
