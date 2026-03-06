@@ -356,12 +356,7 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
             val seekPosition =
                 (call.getFloat("position", position / 1000.0f)!! * 1000.0f).toLong()
 
-            val isPlaying: Boolean? =
-                audioPlayerImpl!!.playlistManager.playlistHandler?.currentMediaPlayer?.isPlaying
             audioPlayerImpl!!.playlistManager.playlistHandler?.seek(seekPosition)
-            if (isPlaying === null || !isPlaying) {
-                audioPlayerImpl!!.playlistManager.playlistHandler?.pause(false)
-            }
 
             call.resolve()
 
