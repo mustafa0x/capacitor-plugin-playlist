@@ -191,6 +191,7 @@ final class RmxAudioPlayer: NSObject {
 
     func setLoopAll(_ loop: Bool) {
         self.loop = loop
+        avQueuePlayer.wrapsWhenAtEnd = loop
 
         print("RmxAudioPlayer.execute=setLoopAll, \(loop)")
     }
@@ -215,12 +216,14 @@ final class RmxAudioPlayer: NSObject {
         guard !avQueuePlayer.queuedAudioTracks.isEmpty else {
             throw "Queue is Empty"
         }
-        let result = findTrack(byId: id)
-        let idx = (result?["index"] as? NSNumber)?.intValue ?? 0
-
-        if idx >= 0 {
-            avQueuePlayer.setCurrentIndex(idx)
+        guard
+            let result = findTrack(byId: id),
+            let idx = (result["index"] as? NSNumber)?.intValue,
+            idx >= 0
+        else {
+            throw "Track ID not found"
         }
+        avQueuePlayer.setCurrentIndex(idx)
     }
 
     func removeItem(_ index: Int) throws {
@@ -234,20 +237,18 @@ final class RmxAudioPlayer: NSObject {
     }
 
     func removeItem(_ id: String) throws {
-        let result = findTrack(byId: id)
-        let idx = (result?["index"] as? NSNumber)?.intValue ?? 0
-        let track = result?["track"] as? AudioTrack
-
-        guard idx >= 0 else {
-            throw "Could not find track by id" + id
+        guard
+            let result = findTrack(byId: id),
+            let idx = (result["index"] as? NSNumber)?.intValue,
+            let track = result["track"] as? AudioTrack,
+            idx >= 0
+        else {
+            throw "Could not find track by id " + id
         }
-        // AudioTrack* item = [self avQueuePlayer].itemsForPlayer[idx];
+
         removeTrackObservers(track)
-
-        if let track = track {
-            avQueuePlayer.remove(track)
-        }
-        onStatus(.rmxstatus_ITEM_REMOVED, trackId: track?.trackId, param: track?.toDict())
+        avQueuePlayer.remove(track)
+        onStatus(.rmxstatus_ITEM_REMOVED, trackId: track.trackId, param: track.toDict())
     }
 
     // MARK: - player actions
