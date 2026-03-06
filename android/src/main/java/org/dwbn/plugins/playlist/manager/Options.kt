@@ -72,6 +72,6 @@ class Options {
 
     companion object {
         // Default icon path
-        private const val DEFAULT_ICON = "icon"
+        private const val DEFAULT_ICON = "ic_notification_icon"
     }
 }
