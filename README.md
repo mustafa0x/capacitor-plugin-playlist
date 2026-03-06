@@ -1,6 +1,6 @@
 # capacitor-plugin-playlist
 
-Published fork: `@mustafa0x/capacitor-plugin-playlist`
+Published fork: `@mustafaj/capacitor-plugin-playlist`
 
 A capacitor plugin for Android, iOS and Web with native support for audio playlists, background support, and lock screen controls
 
@@ -35,7 +35,7 @@ cordova, and here we wanna give back to the community our outcome, any help is a
 As with most capacitor plugins...
 
 ```
-npm i @mustafa0x/capacitor-plugin-playlist
+npm i @mustafaj/capacitor-plugin-playlist
 npx cap sync
 ```
 
@@ -184,7 +184,7 @@ Example:
 @see definition.ts
 
 ```
-import {Playlist, AudioTrack} from '@mustafa0x/capacitor-plugin-playlist'
+import {Playlist, AudioTrack} from '@mustafaj/capacitor-plugin-playlist'
 
 const item: AudioTrack = {
     trackId: 1,

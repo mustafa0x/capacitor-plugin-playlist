@@ -1,5 +1,5 @@
 {
-  "name": "@mustafa0x/capacitor-plugin-playlist",
+  "name": "@mustafaj/capacitor-plugin-playlist",
   "version": "0.9.0",
   "description": "Capacitor audio playlist plugin with Android, iOS, and web support",
   "main": "dist/plugin.cjs.js",
@@ -74,12 +74,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mustafa0x/capacitor-plugin-playlist.git"
+    "url": "git+https://github.com/mustafaj/capacitor-plugin-playlist.git"
   },
   "bugs": {
-    "url": "https://github.com/mustafa0x/capacitor-plugin-playlist/issues"
+    "url": "https://github.com/mustafaj/capacitor-plugin-playlist/issues"
   },
-  "homepage": "https://github.com/mustafa0x/capacitor-plugin-playlist#readme",
+  "homepage": "https://github.com/mustafaj/capacitor-plugin-playlist#readme",
   "publishConfig": {
     "access": "public"
   },
