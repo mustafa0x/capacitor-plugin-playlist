@@ -11,7 +11,7 @@
     "ios/",
     "Package.swift",
     "android/",
-    "CapacitorPluginPlaylist.podspec"
+    "MustafajCapacitorPluginPlaylist.podspec"
   ],
   "scripts": {
     "verify": "npm run verify:ios && npm run verify:android && npm run verify:web",
