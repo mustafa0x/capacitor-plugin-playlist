@@ -123,7 +123,6 @@ also see https://guides.codepath.com/android/Displaying-Images-with-the-Glide-Li
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
-		<string>fetch</string>
 	</array>
 ```
 
