@@ -2,6 +2,8 @@
 
 Capacitor plugin for **Android**, **iOS**, and **Web** with native audio playlist playback, background support, lock-screen / notification controls, and video handoff.
 
+Published fork: `@mustafa0x/capacitor-plugin-playlist`
+
 Requires **Capacitor 8+** (peer dependency `@capacitor/core >= 8.0.0`).
 
 ## Index
@@ -104,7 +106,7 @@ Uses a customized AVQueuePlayer (`AVBidirectionalQueuePlayer`) for track-change 
 ## Installation
 
 ```
-npm i capacitor-plugin-playlist
+npm i @mustafa0x/capacitor-plugin-playlist
 npx cap sync
 ```
 
@@ -223,7 +225,7 @@ See also `examples/audio-provider.ts` for an Angular/Ionic integration.
 ### Basic flow (`Playlist` API)
 
 ```typescript
-import { Playlist, AudioTrack, RmxAudioStatusMessage } from 'capacitor-plugin-playlist';
+import { Playlist, AudioTrack, RmxAudioStatusMessage } from '@mustafa0x/capacitor-plugin-playlist';
 
 await Playlist.setOptions({
   verbose: true,
@@ -261,7 +263,7 @@ await Playlist.play();
 ### `RmxAudioPlayer` wrapper (Cordova migration)
 
 ```typescript
-import { RmxAudioPlayer, AudioTrack } from 'capacitor-plugin-playlist';
+import { RmxAudioPlayer, AudioTrack } from '@mustafa0x/capacitor-plugin-playlist';
 
 const player = new RmxAudioPlayer();
 await player.initialize();
@@ -353,7 +355,7 @@ sequenceDiagram
 ### Basic sequence
 
 ```typescript
-import { Playlist } from 'capacitor-plugin-playlist';
+import { Playlist } from '@mustafa0x/capacitor-plugin-playlist';
 
 // --- Entering native video ---
 await Playlist.prepareForVideoHandoff();
@@ -1219,7 +1221,7 @@ Use the shipped `RmxAudioPlayer` class — in the best case you only change your
 import { RmxAudioPlayer } from 'cordova-plugin-playlist';
 
 // after
-import { RmxAudioPlayer } from 'capacitor-plugin-playlist';
+import { RmxAudioPlayer } from '@mustafa0x/capacitor-plugin-playlist';
 ```
 
 For new code or video handoff, prefer the `Playlist` plugin object directly.
