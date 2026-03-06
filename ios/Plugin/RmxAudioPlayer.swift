@@ -27,6 +27,8 @@ final class RmxAudioPlayer: NSObject {
     private var isReplacingItems = false
     private var isWaitingToStartPlayback = false
     private var loop = false
+    private var queueObserversRegistered = false
+    private var observedTrackItems: Set<ObjectIdentifier> = []
 
     let avQueuePlayer = AVBidirectionalQueuePlayer(items: [])
 
@@ -52,9 +54,7 @@ final class RmxAudioPlayer: NSObject {
         print("RmxAudioPlayer.execute=initialize")
 
         avQueuePlayer.actionAtItemEnd = .advance
-        avQueuePlayer.addObserver(self, forKeyPath: "currentItem", options: .new, context: nil)
-        avQueuePlayer.addObserver(self, forKeyPath: "rate", options: .new, context: nil)
-        avQueuePlayer.addObserver(self, forKeyPath: "timeControlStatus", options: .new, context: nil)
+        registerQueueObservers()
 
         let interval = CMTimeMakeWithSeconds(Float64(1.0), preferredTimescale: Int32(Double(NSEC_PER_SEC)))
         playbackTimeObserver = avQueuePlayer.addPeriodicTimeObserver(forInterval: interval, queue: .main, using: { [weak self] time in
@@ -393,7 +393,9 @@ final class RmxAudioPlayer: NSObject {
     }
 
     func setTracks(_ tracks: [AudioTrack], startIndex: Int, startPosition: Float) {
-        avQueuePlayer.removeAllTrackObservers()
+        for item in avQueuePlayer.queuedAudioTracks {
+            removeTrackObservers(item)
+        }
         
         isReplacingItems = true
         print("RmxAudioPlayer[setTracks] replacing tracks ")
@@ -1036,10 +1038,19 @@ final class RmxAudioPlayer: NSObject {
     }
 
     func addTrackObservers(_ playerItem: AudioTrack?) {
+        guard let playerItem = playerItem else {
+            return
+        }
+        let trackId = ObjectIdentifier(playerItem)
+        guard !observedTrackItems.contains(trackId) else {
+            return
+        }
+        observedTrackItems.insert(trackId)
+
         let options: NSKeyValueObservingOptions = [.old, .new]
-        playerItem?.addObserver(self, forKeyPath: "status", options: options, context: nil)
-        playerItem?.addObserver(self, forKeyPath: "duration", options: options, context: nil)
-        playerItem?.addObserver(self, forKeyPath: "loadedTimeRanges", options: options, context: nil)
+        playerItem.addObserver(self, forKeyPath: "status", options: options, context: nil)
+        playerItem.addObserver(self, forKeyPath: "duration", options: options, context: nil)
+        playerItem.addObserver(self, forKeyPath: "loadedTimeRanges", options: options, context: nil)
 
         // We don't need this one because we get the currentItem notification from the queue.
         // But we will wire it up anyway...
@@ -1048,7 +1059,7 @@ final class RmxAudioPlayer: NSObject {
         // Subscribe to the AVPlayerItem's PlaybackStalledNotification notification.
         listener.addObserver(self, selector: #selector(itemStalledPlaying(_:)), name: .AVPlayerItemPlaybackStalled, object: playerItem)
 
-        onStatus(.rmxstatus_ITEM_ADDED, trackId: playerItem?.trackId, param: playerItem?.toDict())
+        onStatus(.rmxstatus_ITEM_ADDED, trackId: playerItem.trackId, param: playerItem.toDict())
     }
 
     @objc func queueCleared(_ notification: Notification?) {
@@ -1058,7 +1069,41 @@ final class RmxAudioPlayer: NSObject {
     }
 
     func removeTrackObservers(_ playerItem: AudioTrack?) {
-        avQueuePlayer.removeTrackObservers(playerItem)
+        guard let playerItem = playerItem else {
+            return
+        }
+        let trackId = ObjectIdentifier(playerItem)
+        guard observedTrackItems.remove(trackId) != nil else {
+            return
+        }
+
+        playerItem.removeObserver(self, forKeyPath: "status")
+        playerItem.removeObserver(self, forKeyPath: "duration")
+        playerItem.removeObserver(self, forKeyPath: "loadedTimeRanges")
+
+        let listener = NotificationCenter.default
+        listener.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: playerItem)
+        listener.removeObserver(self, name: .AVPlayerItemPlaybackStalled, object: playerItem)
+    }
+
+    func registerQueueObservers() {
+        guard !queueObserversRegistered else {
+            return
+        }
+        avQueuePlayer.addObserver(self, forKeyPath: "currentItem", options: .new, context: nil)
+        avQueuePlayer.addObserver(self, forKeyPath: "rate", options: .new, context: nil)
+        avQueuePlayer.addObserver(self, forKeyPath: "timeControlStatus", options: .new, context: nil)
+        queueObserversRegistered = true
+    }
+
+    func unregisterQueueObservers() {
+        guard queueObserversRegistered else {
+            return
+        }
+        avQueuePlayer.removeObserver(self, forKeyPath: "currentItem")
+        avQueuePlayer.removeObserver(self, forKeyPath: "rate")
+        avQueuePlayer.removeObserver(self, forKeyPath: "timeControlStatus")
+        queueObserversRegistered = false
     }
 
     func activateAudioSession() {
@@ -1143,6 +1188,7 @@ final class RmxAudioPlayer: NSObject {
         if let playbackTimeObserver = playbackTimeObserver {
             avQueuePlayer.removeTimeObserver(playbackTimeObserver)
         }
+        unregisterQueueObservers()
         deregisterMusicControlsEventListener()
 
         removeAllTracks()
