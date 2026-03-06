@@ -22,7 +22,7 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
     private var isWebViewActive = true
 
     override fun load() {
-        audioPlayerImpl = RmxAudioPlayer(this, (this.context.applicationContext as App))
+        audioPlayerImpl = RmxAudioPlayer(this, this.context.applicationContext)
     }
 
     @PluginMethod

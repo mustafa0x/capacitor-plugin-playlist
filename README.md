@@ -132,18 +132,16 @@ Add to `angular.json` → architect → build → options → scripts:
 
 ### Android
 
-#### AndroidManifest.xml
+#### Android manifest
 
-```xml
-<uses-permission android:name="android.permission.WAKE_LOCK" />
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-<application android:name="org.dwbn.plugins.playlist.App">
-    <service android:enabled="true" android:exported="false"
-             android:foregroundServiceType="mediaPlayback"
-             android:name="org.dwbn.plugins.playlist.service.MediaService">
-    </service>
-</application>
-```
+The plugin ships its own merged Android manifest entries for:
+
+- `WAKE_LOCK`
+- `FOREGROUND_SERVICE`
+- `FOREGROUND_SERVICE_MEDIA_PLAYBACK`
+- `org.dwbn.plugins.playlist.service.MediaService`
+
+You do not need to replace your app's `Application` class to use the plugin.
 
 #### Gradle 9+
 
