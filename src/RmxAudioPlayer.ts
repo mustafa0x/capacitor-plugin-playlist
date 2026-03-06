@@ -3,7 +3,6 @@ import {
     RmxAudioStatusMessageDescriptions
 } from './Constants';
 import {
-    RemoveItemOptions
 } from './definitions';
 import {
     AudioPlayerEventHandler,
@@ -206,10 +205,13 @@ export class RmxAudioPlayer {
         if (!removeItem) {
             throw new Error('Track removal spec is empty');
         }
-        if (!removeItem.trackId && !removeItem.trackIndex) {
-            new Error('Track removal spec is invalid');
+        if (!removeItem.trackId && removeItem.trackIndex === undefined) {
+            throw new Error('Track removal spec is invalid');
         }
-        return Playlist.removeItem({id: removeItem.trackId!, index: removeItem.trackIndex!});
+        return Playlist.removeItem({
+            id: removeItem.trackId,
+            index: removeItem.trackIndex
+        });
     };
 
     /**
@@ -217,7 +219,12 @@ export class RmxAudioPlayer {
      * include the currently playing item, the next available item will automatically begin playing.
      */
     removeItems = (items: AudioTrackRemoval[]) => {
-        return Playlist.removeItems({items: items as RemoveItemOptions[]});
+        return Playlist.removeItems({
+            items: (items || []).map((item) => ({
+                id: item?.trackId,
+                index: item?.trackIndex
+            }))
+        });
     };
 
     /**
