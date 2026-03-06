@@ -207,6 +207,9 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
     @Override
     public void onItemPlaybackEnded(AudioTrack item) {
         if (item != null) {
+            if (suppressSelectionPlaybackEvents || isSuppressingSelection(item)) {
+                return;
+            }
             String trackId = item.getTrackId();
             JSONObject trackStatus = getPlayerStatus(item);
             onStatus(RmxAudioStatusMessage.RMXSTATUS_STOPPED, trackId, trackStatus);
@@ -256,8 +259,7 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
 
         switch (playbackState) {
             case STOPPED:
-                if (suppressSelection) {
-                    clearTrackSelectionSuppression();
+                if (suppressSelection || suppressSelectionPlaybackEvents) {
                     break;
                 }
                 onStatus(RmxAudioStatusMessage.RMXSTATUS_STOPPED, "INVALID", null);
