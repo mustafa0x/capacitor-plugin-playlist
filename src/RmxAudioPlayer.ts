@@ -51,6 +51,10 @@ export class RmxAudioPlayer {
     private _hasError: boolean = false;
     private _hasLoaded: boolean = false;
     private _currentItem: AudioTrack | null = null;
+    private _currentPosition = 0;
+    private _currentDuration = 0;
+    private _currentPositionUpdatedAt = performance.now();
+    private _playbackRate = 1;
 
     /**
      * The current summarized state of the player, as a string. It is preferred that you use the 'isX' accessors,
@@ -63,6 +67,21 @@ export class RmxAudioPlayer {
 
     get currentTrack(): AudioTrack | null {
         return this._currentItem;
+    }
+
+    get currentPosition() {
+        const duration = this._currentDuration || 0;
+        if (this._currentState !== 'playing') {
+            return duration ? Math.min(this._currentPosition, duration) : this._currentPosition;
+        }
+
+        const elapsed = Math.max(0, (performance.now() - this._currentPositionUpdatedAt) / 1000);
+        const nextPosition = this._currentPosition + elapsed * this._playbackRate;
+        return duration ? Math.min(nextPosition, duration) : nextPosition;
+    }
+
+    get currentDuration() {
+        return this._currentDuration;
     }
 
     /**
@@ -250,6 +269,10 @@ export class RmxAudioPlayer {
      */
 
     playTrackByIndex = (index: number, position?: number) => {
+        if (position !== undefined) {
+            this._currentPosition = position || 0;
+            this._currentPositionUpdatedAt = performance.now();
+        }
         return Playlist.playTrackByIndex({index, position: position || 0});
     };
 
@@ -257,6 +280,10 @@ export class RmxAudioPlayer {
      * Play the track matching the given trackId. If the track does not exist, this has no effect.
      */
     playTrackById = (id: string, position?: number) => {
+        if (position !== undefined) {
+            this._currentPosition = position || 0;
+            this._currentPositionUpdatedAt = performance.now();
+        }
         return Playlist.playTrackById({id, position: position || 0});
     };
 
@@ -264,6 +291,10 @@ export class RmxAudioPlayer {
      * Play the track matching the given trackId. If the track does not exist, this has no effect.
      */
     selectTrackByIndex = (index: number, position?: number) => {
+        if (position !== undefined) {
+            this._currentPosition = position || 0;
+            this._currentPositionUpdatedAt = performance.now();
+        }
         return Playlist.selectTrackByIndex({index, position: position || 0});
     };
 
@@ -271,6 +302,10 @@ export class RmxAudioPlayer {
      * Play the track matching the given trackId. If the track does not exist, this has no effect.
      */
     selectTrackById = (id: string, position?: number) => {
+        if (position !== undefined) {
+            this._currentPosition = position || 0;
+            this._currentPositionUpdatedAt = performance.now();
+        }
         return Playlist.selectTrackById({id, position: position || 0});
     };
 
@@ -301,6 +336,8 @@ export class RmxAudioPlayer {
      * the track will complete and playback of the next track will begin.
      */
     seekTo = (position: number) => {
+        this._currentPosition = position;
+        this._currentPositionUpdatedAt = performance.now();
         return Playlist.seekTo({position});
     };
 
@@ -308,6 +345,9 @@ export class RmxAudioPlayer {
      * Set the playback speed; a float value between [-1, 1] inclusive. If set to 0, this pauses playback.
      */
     setPlaybackRate = (rate: number) => {
+        this._playbackRate = rate || 1;
+        this._currentPosition = this.currentPosition;
+        this._currentPositionUpdatedAt = performance.now();
         return Playlist.setPlaybackRate({rate});
     };
 
@@ -346,6 +386,9 @@ export class RmxAudioPlayer {
             this._hasError = false;
             this._hasLoaded = false;
             this._currentState = 'loading';
+            this._currentPosition = 0;
+            this._currentDuration = 0;
+            this._currentPositionUpdatedAt = performance.now();
             this._currentItem = (status.value as OnStatusTrackChangedData)?.currentItem;
         }
 
@@ -353,9 +396,30 @@ export class RmxAudioPlayer {
         if (itemStatusChangeTypes.indexOf(status.msgType) >= 0) {
             // Only change the plugin's *current status* if the event being raised is for the current active track.
             if (this._currentItem && this._currentItem.trackId === trackId) {
+                if (status.msgType === RmxAudioStatusMessage.RMXSTATUS_PLAYBACK_POSITION && status.value && (<any> status.value).currentPosition !== undefined) {
+                    this._currentPosition = (<any> status.value).currentPosition;
+                    this._currentPositionUpdatedAt = performance.now();
+                }
+
+                if (status.msgType === RmxAudioStatusMessage.RMXSTATUS_DURATION && status.value && (<any> status.value).duration !== undefined) {
+                    this._currentDuration = (<any> status.value).duration;
+                }
 
                 if (status.value && (<any> status.value).status) {
                     this._currentState = (<any> status.value).status;
+                }
+
+                if (
+                    status.msgType === RmxAudioStatusMessage.RMXSTATUS_PLAYING ||
+                    status.msgType === RmxAudioStatusMessage.RMXSTATUS_PAUSE ||
+                    status.msgType === RmxAudioStatusMessage.RMXSTATUS_SEEK ||
+                    status.msgType === RmxAudioStatusMessage.RMXSTATUS_COMPLETED
+                ) {
+                    const currentPosition = (<any> status.value)?.currentPosition ?? (<any> status.value)?.position;
+                    if (currentPosition !== undefined) {
+                        this._currentPosition = currentPosition;
+                        this._currentPositionUpdatedAt = performance.now();
+                    }
                 }
 
                 if (status.msgType === RmxAudioStatusMessage.RMXSTATUS_CANPLAY) {
