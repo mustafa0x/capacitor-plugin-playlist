@@ -215,6 +215,7 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
     @PluginMethod
     fun play(call: PluginCall) {
         Handler(Looper.getMainLooper()).post {
+            audioPlayerImpl!!.clearTrackSelectionSuppression()
             val handler = audioPlayerImpl!!.playlistManager.playlistHandler
             val serviceForeground = MediaService.instance?.isRunningInForeground() == true
             if (handler == null || handler.currentMediaPlayer == null) {
@@ -244,6 +245,7 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
             val seekPosition = (call.getFloat("position", 0f)!! * 1000.0f).toLong()
 
             audioPlayerImpl!!.playlistManager.currentPosition = index
+            audioPlayerImpl!!.clearTrackSelectionSuppression()
             audioPlayerImpl!!.playlistManager.beginPlayback(seekPosition, false)
 
             call.resolve()
@@ -260,6 +262,7 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
                 val code = id.hashCode()
                 val seekPosition = (call.getFloat("position", 0f)!! * 1000.0f).toLong()
                 audioPlayerImpl!!.playlistManager.setCurrentItem(code.toLong())
+                audioPlayerImpl!!.clearTrackSelectionSuppression()
                 val handler = audioPlayerImpl!!.playlistManager.playlistHandler
                 val alreadyPlaying = handler?.currentMediaPlayer?.isPlaying == true
                 if (!audioPlayerImpl!!.tryResumeVideoHandoffInPlace(seekPosition) && !alreadyPlaying) {
@@ -280,6 +283,7 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
                 call.getInt("index", audioPlayerImpl!!.playlistManager.currentPosition)!!
 
             audioPlayerImpl!!.playlistManager.currentPosition = index
+            audioPlayerImpl!!.prepareForTrackSelection(audioPlayerImpl!!.playlistManager.currentItem?.trackId)
 
             val seekPosition = (call.getFloat("position", 0f)!! * 1000.0f).toLong()
 
@@ -300,6 +304,7 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
                 // alternatively we could search for the item and set the current index to that item.
                 val code = id.hashCode()
                 audioPlayerImpl!!.playlistManager.setCurrentItem(code.toLong())
+                audioPlayerImpl!!.prepareForTrackSelection(id)
 
                 val seekPosition = (call.getFloat("position", 0f)!! * 1000.0f).toLong()
 
@@ -314,6 +319,7 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
     @PluginMethod
     fun pause(call: PluginCall) {
         Handler(Looper.getMainLooper()).post {
+            audioPlayerImpl!!.clearTrackSelectionSuppression()
             if (audioPlayerImpl!!.playlistManager.isPlaying) {
                 audioPlayerImpl!!.playlistManager.playlistHandler?.pause(false)
             }
