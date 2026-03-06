@@ -114,24 +114,26 @@ final class RmxAudioPlayer: NSObject {
 
         var removed = 0
         if items.count > 0 {
+            let snapshot = avQueuePlayer.queuedAudioTracks
+            var indices = Set<Int>()
             for item in items {
                 guard let item = item as? [String: Any] else {
                     continue
                 }
 
-                if let id = item["id"] as? String {
-                    do {
-                        try removeItem(id)
-                        removed += 1
-                    } catch {}
+                if let index = (item["index"] as? NSNumber)?.intValue, snapshot.indices.contains(index) {
+                    indices.insert(index)
+                } else if let id = item["id"] as? String,
+                          let index = snapshot.firstIndex(where: { $0.trackId == id }) {
+                    indices.insert(index)
                 }
-                else if let index = (item["index"] as? NSNumber)?.intValue {
-                    do {
-                        try removeItem(index)
-                        removed += 1
-                    } catch {}
-                }
+            }
 
+            for index in indices.sorted(by: >) {
+                do {
+                    try removeItem(index)
+                    removed += 1
+                } catch {}
             }
         }
 

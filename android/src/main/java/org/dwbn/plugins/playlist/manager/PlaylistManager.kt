@@ -205,9 +205,24 @@ class PlaylistManager(application: Application) :
         val progress = currentProgress
         val seekPosition: Long = if (progress != null) progress.position else 0
 
+        val snapshot = audioTracks.toList()
+        val resolvedIndices = LinkedHashSet<Int>()
         for (item in its) {
-            val resolvedIndex = resolveItemPosition(item.trackIndex, item.trackId)
+            val resolvedIndex =
+                if (item.trackIndex >= 0 && item.trackIndex < snapshot.size) {
+                    item.trackIndex
+                } else if (item.trackId.isNotEmpty()) {
+                    snapshot.indexOfFirst { it.trackId == item.trackId }
+                } else {
+                    -1
+                }
             if (resolvedIndex >= 0) {
+                resolvedIndices.add(resolvedIndex)
+            }
+        }
+
+        for (resolvedIndex in resolvedIndices.sortedDescending()) {
+            if (resolvedIndex in audioTracks.indices) {
                 val foundItem = audioTracks[resolvedIndex]
                 if (foundItem == currentItem) {
                     removingCurrent = true
