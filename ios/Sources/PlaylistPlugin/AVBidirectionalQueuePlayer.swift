@@ -35,6 +35,7 @@ let AVBidirectionalQueueCleared = "AVBidirectionalQueuePlayer.Cleared"
 
 class AVBidirectionalQueuePlayer: AVQueuePlayer {
     var queuedAudioTracks: [AudioTrack] = []
+    var wrapsWhenAtEnd = false
 
     var isPlaying: Bool {
         timeControlStatus == .playing
@@ -126,7 +127,7 @@ class AVBidirectionalQueuePlayer: AVQueuePlayer {
     open override func advanceToNextItem() {
         if currentIndex() == nil || currentIndex()! < queuedAudioTracks.count - 1{
             super.advanceToNextItem();
-        } else {
+        } else if wrapsWhenAtEnd {
             setCurrentIndex(0)
         }
     }
