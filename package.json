@@ -1,7 +1,7 @@
 {
-  "name": "capacitor-plugin-playlist",
+  "name": "@mustafa0x/capacitor-plugin-playlist",
   "version": "0.9.0",
-  "description": "Playlist ",
+  "description": "Capacitor audio playlist plugin with Android, iOS, and web support",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",
   "types": "dist/esm/index.d.ts",
@@ -29,7 +29,7 @@
     "prepublishOnly": "npm run build",
     "prepare": "npm run build"
   },
-  "author": "phiamo",
+  "author": "mustafa j",
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0"
@@ -74,13 +74,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/phiamo/capacitor-plugin-playlist"
+    "url": "git+https://github.com/mustafa0x/capacitor-plugin-playlist.git"
   },
   "bugs": {
-    "url": "https://github.com/phiamo/capacitor-plugin-playlist/issues"
+    "url": "https://github.com/mustafa0x/capacitor-plugin-playlist/issues"
   },
+  "homepage": "https://github.com/mustafa0x/capacitor-plugin-playlist#readme",
   "publishConfig": {
-    "@phiamo:registry": "https://npm.pkg.github.com"
+    "access": "public"
   },
   "overrides": {
     "@types/node": "^20.0.0"
