@@ -667,13 +667,11 @@ final class RmxAudioPlayer: NSObject {
                 updatedNowPlayingInfo![MPMediaItemPropertyTitle] = currentItem?.title
                 updatedNowPlayingInfo![MPMediaItemPropertyAlbumTitle] = currentItem?.album
 
-                if let mediaItemArtwork = createCoverArtwork(currentItem?.albumArt?.absoluteString) {
-                    updatedNowPlayingInfo![MPMediaItemPropertyArtwork] = mediaItemArtwork
-                }
+                updateNowPlayingArtwork(currentItem?.albumArt?.absoluteString)
             }
             updatedNowPlayingInfo![MPMediaItemPropertyPlaybackDuration] = duration ?? 0.0
             updatedNowPlayingInfo![MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime ?? 0.0
-            updatedNowPlayingInfo![MPNowPlayingInfoPropertyPlaybackRate] = 1.0
+            updatedNowPlayingInfo![MPNowPlayingInfoPropertyPlaybackRate] = avQueuePlayer.rate != 0.0 ? avQueuePlayer.rate : 0.0
 
             MPNowPlayingInfoCenter.default().nowPlayingInfo = updatedNowPlayingInfo
         }
@@ -683,24 +681,47 @@ final class RmxAudioPlayer: NSObject {
         commandCenter.previousTrackCommand.isEnabled = !avQueuePlayer.isAtBeginning
     }
 
+    func updateNowPlayingArtwork(_ coverUriOrNil: String?) {
+        guard let coverUri = coverUriOrNil else {
+            updatedNowPlayingInfo?.removeValue(forKey: MPMediaItemPropertyArtwork)
+            return
+        }
+
+        if coverUri.hasPrefix("http://") || coverUri.hasPrefix("https://") {
+            guard let coverImageUrl = URL(string: coverUri) else {
+                updatedNowPlayingInfo?.removeValue(forKey: MPMediaItemPropertyArtwork)
+                return
+            }
+            downloadImage(url: coverImageUrl) { [weak self] image in
+                guard
+                    let self = self,
+                    self.isCoverImageValid(image)
+                else {
+                    return
+                }
+                let artwork = MPMediaItemArtwork(boundsSize: image!.size) { _ in image! }
+                self.nowPlayingInfoQueue.sync {
+                    self.updatedNowPlayingInfo?[MPMediaItemPropertyArtwork] = artwork
+                    MPNowPlayingInfoCenter.default().nowPlayingInfo = self.updatedNowPlayingInfo
+                }
+            }
+            return
+        }
+
+        if let mediaItemArtwork = createCoverArtwork(coverUri) {
+            updatedNowPlayingInfo?[MPMediaItemPropertyArtwork] = mediaItemArtwork
+        } else {
+            updatedNowPlayingInfo?.removeValue(forKey: MPMediaItemPropertyArtwork)
+        }
+    }
+
     func createCoverArtwork(_ coverUriOrNil: String?) -> MPMediaItemArtwork? {
         guard let coverUri = coverUriOrNil else {
             return nil
         }
         var coverImage: UIImage? = nil
-        if coverUri.hasPrefix("http://") || coverUri.hasPrefix("https://") {
-            let coverImageUrl = URL(string: coverUri)!
-
-            do {
-                let coverImageData = try Data(contentsOf: coverImageUrl)
-                coverImage = UIImage(data: coverImageData)
-            } catch {
-                print("Error creating the coverImageData");
-            }
-        } else {
-            if FileManager.default.fileExists(atPath: coverUri) {
-                coverImage = UIImage(contentsOfFile: coverUri)
-            }
+        if FileManager.default.fileExists(atPath: coverUri) {
+            coverImage = UIImage(contentsOfFile: coverUri)
         }
 
         if isCoverImageValid(coverImage) {
@@ -1109,16 +1130,12 @@ final class RmxAudioPlayer: NSObject {
     func activateAudioSession() {
         let avSession = AVAudioSession.sharedInstance()
 
-        // If no devices are connected, play audio through the default speaker (rather than the earpiece).
-        var options: AVAudioSession.CategoryOptions = .defaultToSpeaker
-
-        // If both Bluetooth streaming options are enabled, the low quality stream is preferred; enable A2DP only.
-        options.insert(.allowBluetoothA2DP)
+        let options: AVAudioSession.CategoryOptions = [.allowBluetoothA2DP]
 
         do {
             // Always set category first, even if session is already active
             // This ensures we have the correct category after video player exits
-            try avSession.setCategory(.playAndRecord, options: options)
+            try avSession.setCategory(.playback, options: options)
         } catch {
             print("Error setting category! \(error.localizedDescription)")
         }
