@@ -204,6 +204,11 @@ Its a meant as a drop in replacement
 
 in the best case you only change your import. :D
 
+### Breaking changes
+
+- Low-level `Playlist.removeItem()` and `Playlist.removeItems()` calls now accept only `id` / `index`.
+- `trackId` / `trackIndex` remain supported on the higher-level `RmxAudioPlayer` wrapper, which maps them to the canonical plugin contract.
+
 ## 5. Todo
 
 - [iOS] Utilize [AudioPlayer](https://github.com/delannoyk/AudioPlayer) instead of directly implementing AVQueuePlayer. `AudioPlayer` includes some smart network recovery features
