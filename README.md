@@ -215,6 +215,11 @@ Without `audio` background mode, iOS stops playback when the app backgrounds.
 
 See also `examples/audio-provider.ts` for an Angular/Ionic integration.
 
+### Breaking changes
+
+- Low-level `Playlist.removeItem()` and `Playlist.removeItems()` calls now accept only `id` / `index`.
+- `trackId` / `trackIndex` remain supported on the higher-level `RmxAudioPlayer` wrapper, which maps them to the canonical plugin contract.
+
 ### Basic flow (`Playlist` API)
 
 ```typescript
