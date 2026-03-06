@@ -66,6 +66,12 @@
 
 - Chore: Version bump after merging interop fixes into main for release.
 
+### Breaking Changes
+
+- Low-level `Playlist.removeItem()` and `Playlist.removeItems()` now accept only `id` / `index`.
+- If you were calling the raw Capacitor plugin API with `trackId` / `trackIndex`, update those calls to `id` / `index`.
+- The higher-level `RmxAudioPlayer` wrapper still accepts `trackId` / `trackIndex` and maps them to the canonical plugin contract.
+
 ## 0.8.11
 
 - Fix (iOS): `observeValue case "rate"` now uses the new rate value to determine playing/paused state instead of `player?.isPlaying` (which equals `timeControlStatus == .playing`). During the `.waitingToPlayAtSpecifiedRate` transition right after `play()`, `isPlaying` was `false` even though rate had changed to 1, causing a spurious PAUSE event to be sent to JS immediately on resume.
