@@ -205,7 +205,6 @@ Add to `Info.plist`:
 <key>UIBackgroundModes</key>
 <array>
     <string>audio</string>
-    <string>fetch</string>
 </array>
 ```
 
