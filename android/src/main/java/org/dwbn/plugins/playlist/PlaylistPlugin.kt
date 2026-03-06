@@ -19,7 +19,7 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
     private var resetStreamOnPause = true
 
     override fun load() {
-        audioPlayerImpl = RmxAudioPlayer(this, (this.context.applicationContext as App))
+        audioPlayerImpl = RmxAudioPlayer(this, this.context.applicationContext)
     }
 
     @PluginMethod

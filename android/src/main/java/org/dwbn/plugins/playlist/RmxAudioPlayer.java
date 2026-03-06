@@ -1,5 +1,6 @@
 package org.dwbn.plugins.playlist;
 
+import android.content.Context;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -46,9 +47,9 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
     private boolean resetStreamOnPause = true;
     private String pendingSelectionTrackId = null;
     private boolean suppressSelectionPlaybackEvents = false;
-    private final App app;
+    private final Context context;
 
-    public RmxAudioPlayer(@NonNull OnStatusReportListener statusListener, App context) {
+    public RmxAudioPlayer(@NonNull OnStatusReportListener statusListener, @NonNull Context context) {
         // AudioPlayerPlugin and RmxAudioPlayer are separate classes in order to increase
         // the portability of this code.
         // Because AudioPlayerPlugin itself holds a strong reference to this class,
@@ -56,10 +57,9 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
         // but these two objects will always live together (And the plugin couldn't function
         // at all if this one gets garbage collected).
         this.statusListener = statusListener;
-        this.app = context;
+        this.context = context.getApplicationContext();
 
-        app.resetPlaylistManager();
-        getPlaylistManager();
+        playlistManager = PlaylistRuntime.resetPlaylistManager(this.context);
         playlistManager.setId(PLAYLIST_ID);
         playlistManager.setPlaybackStatusListener(this);
         playlistManager.setOnErrorListener(this);
@@ -67,7 +67,7 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
     }
 
     public PlaylistManager getPlaylistManager() {
-        playlistManager = app.getPlaylistManager();
+        playlistManager = PlaylistRuntime.getPlaylistManager(context);
         return playlistManager;
     }
 
@@ -81,7 +81,7 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
     }
 
     public void setOptions(JSONObject val) {
-        Options options = new Options(app, val);
+        Options options = new Options(context, val);
         getPlaylistManager().setOptions(options);
     }
 

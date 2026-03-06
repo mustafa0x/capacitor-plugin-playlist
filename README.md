@@ -60,34 +60,16 @@ architect => build => options:
     ]
 ```
 
-##### AndroidManifest.xml:
+##### Android manifest
 
-```
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <application
-        android:name="org.dwbn.plugins.playlist.App"
-    >
-        <service android:enabled="true" android:exported="false"
-                 android:name="org.dwbn.plugins.playlist.service.MediaService">
-        </service>
-    </application>
-```
+The plugin now ships its own merged Android manifest entries for:
 
-**Note**: Starting with Android 14, you now need to specify the `foregroundServiceType` and request the appropriate permission:
+- `WAKE_LOCK`
+- `FOREGROUND_SERVICE`
+- `FOREGROUND_SERVICE_MEDIA_PLAYBACK`
+- `org.dwbn.plugins.playlist.service.MediaService`
 
-```
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-    <application
-        android:name="org.dwbn.plugins.playlist.App"
-    >
-        <service android:enabled="true" android:exported="false"
-                 android:foregroundServiceType="mediaPlayback"
-                 android:name="org.dwbn.plugins.playlist.service.MediaService">
-        </service>
-    </application>
-```
+You do not need to replace your app's `Application` class to use the plugin.
 
 ##### Gradle Configuration (Gradle 9+)
 

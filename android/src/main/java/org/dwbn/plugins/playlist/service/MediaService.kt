@@ -8,7 +8,7 @@ import android.os.Build
 import android.util.Log
 import com.devbrackets.android.playlistcore.components.playlisthandler.PlaylistHandler
 import com.devbrackets.android.playlistcore.service.BasePlaylistService
-import org.dwbn.plugins.playlist.App
+import org.dwbn.plugins.playlist.PlaylistRuntime
 import org.dwbn.plugins.playlist.data.AudioTrack
 import org.dwbn.plugins.playlist.manager.PlaylistManager
 import org.dwbn.plugins.playlist.playlist.AudioApi
@@ -78,7 +78,7 @@ class MediaService : BasePlaylistService<AudioTrack, PlaylistManager>() {
     }
 
     override val playlistManager: PlaylistManager
-        get() = (applicationContext as App).playlistManager
+        get() = PlaylistRuntime.getPlaylistManager(applicationContext)
 
     override fun newPlaylistHandler(): PlaylistHandler<AudioTrack> {
         val imageProvider = MediaImageProvider(applicationContext, object : OnImageUpdatedListener {
