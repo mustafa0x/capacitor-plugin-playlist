@@ -1,6 +1,6 @@
 {
   "name": "@mustafaj/capacitor-plugin-playlist",
-  "version": "0.9.5",
+  "version": "0.9.6",
   "description": "Capacitor audio playlist plugin with Android, iOS, and web support",
   "module": "dist/esm/index.js",
   "types": "dist/esm/index.d.ts",
