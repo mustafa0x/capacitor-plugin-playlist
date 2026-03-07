@@ -28,6 +28,8 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
     protected options: AudioPlayerOptions = {};
     protected currentTrack: AudioTrack | null = null;
     protected lastState = 'stopped';
+    protected hlsInstance: any;
+    protected lastPlaybackPositionEmitAt = 0;
 
     addAllItems(options: AddAllItemOptions): Promise<void> {
         this.playlistItems = this.playlistItems.concat(validateTracks(options.items));
@@ -99,6 +101,10 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
 
     async release(): Promise<void> {
         await this.pause();
+        if (this.hlsInstance) {
+            this.hlsInstance.destroy();
+            this.hlsInstance = undefined;
+        }
         this.audio = undefined;
         return Promise.resolve();
     }
@@ -150,7 +156,7 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
     selectTrackById(options: SelectByIdOptions): Promise<void> {
         for (const item of this.playlistItems) {
             if (item.trackId === options.id) {
-                return this.setCurrent(item);
+                return this.setCurrent(item, options.position);
             }
         }
         return Promise.reject();
@@ -160,7 +166,7 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
         let index = 0;
         for (const item of this.playlistItems) {
             if (index === options.index) {
-                return this.setCurrent(item);
+                return this.setCurrent(item, options.position);
             }
             index++;
         }
@@ -201,47 +207,47 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
     }
 
     async skipForward(): Promise<void> {
-        let found: number | null = null;
-        this.playlistItems.forEach((item, index) => {
-            if (found === null && this.getCurrentTrackId() === item.trackId) {
-                found = index;
+        const currentIndex = this.getCurrentIndex();
+        if (currentIndex < 0) {
+            return Promise.reject();
+        }
+
+        let targetIndex = currentIndex + 1;
+        if (targetIndex >= this.playlistItems.length) {
+            if (!this.loop) {
+                return Promise.reject();
             }
-        });
-
-        if (found === this.playlistItems.length - 1) {
-            found = -1;
+            targetIndex = 0;
         }
 
-        if (found !== null) {
-            const targetIndex = found + 1;
-            this.updateStatus(RmxAudioStatusMessage.RMX_STATUS_SKIP_FORWARD, {
-                currentIndex: targetIndex,
-                currentItem: this.playlistItems[targetIndex]
-            }, this.playlistItems[targetIndex].trackId);
-            return this.setCurrent(this.playlistItems[targetIndex]);
-        }
-
-        return Promise.reject();
+        const targetItem = this.playlistItems[targetIndex];
+        this.updateStatus(
+            RmxAudioStatusMessage.RMX_STATUS_SKIP_FORWARD,
+            this.getTrackChangeStatus(targetItem)
+        );
+        return this.setCurrent(targetItem);
     }
 
     async skipBack(): Promise<void> {
-        let found: number | null = null;
-        this.playlistItems.forEach((item, index) => {
-            if (found === null && this.getCurrentTrackId() === item.trackId) {
-                found = index;
-            }
-        });
-
-        if (found !== null) {
-            const targetIndex = found === 0 ? this.playlistItems.length - 1 : found - 1;
-            this.updateStatus(RmxAudioStatusMessage.RMX_STATUS_SKIP_BACK, {
-                currentIndex: targetIndex,
-                currentItem: this.playlistItems[targetIndex]
-            }, this.playlistItems[targetIndex].trackId);
-            return this.setCurrent(this.playlistItems[targetIndex]);
+        const currentIndex = this.getCurrentIndex();
+        if (currentIndex < 0) {
+            return Promise.reject();
         }
 
-        return Promise.reject();
+        let targetIndex = currentIndex - 1;
+        if (targetIndex < 0) {
+            if (!this.loop) {
+                return Promise.reject();
+            }
+            targetIndex = this.playlistItems.length - 1;
+        }
+
+        const targetItem = this.playlistItems[targetIndex];
+        this.updateStatus(
+            RmxAudioStatusMessage.RMX_STATUS_SKIP_BACK,
+            this.getTrackChangeStatus(targetItem)
+        );
+        return this.setCurrent(targetItem);
     }
 
     setPlaybackRate(options: SetPlaybackRateOptions): Promise<void> {
@@ -339,22 +345,36 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
             });
 
             this.audio.addEventListener('ended', () => {
-                this.updateStatus(RmxAudioStatusMessage.RMXSTATUS_COMPLETED, this.getCurrentTrackStatus('stopped'));
-                const currentTrackIndex = this.playlistItems.findIndex(i => i.trackId === this.getCurrentTrackId());
-                if (currentTrackIndex === this.playlistItems.length - 1) {
-                    this.updateStatus(RmxAudioStatusMessage.RMXSTATUS_PLAYLIST_COMPLETED, this.getCurrentTrackStatus('stopped'));
-                } else {
-                    this.setCurrent(this.playlistItems[currentTrackIndex + 1], undefined, true);
+                this.updateStatus(RmxAudioStatusMessage.RMXSTATUS_COMPLETED, this.getCurrentTrackStatus('paused'));
+                const currentTrackIndex = this.getCurrentIndex();
+                if (currentTrackIndex < 0) {
+                    return;
                 }
+                const hasNext = currentTrackIndex < this.playlistItems.length - 1;
+                if (hasNext) {
+                    this.setCurrent(this.playlistItems[currentTrackIndex + 1], undefined, true);
+                    return;
+                }
+                if (this.loop && this.playlistItems.length > 0) {
+                    this.setCurrent(this.playlistItems[0], undefined, true);
+                    return;
+                }
+                this.updateStatus(RmxAudioStatusMessage.RMXSTATUS_PLAYLIST_COMPLETED, this.getCurrentTrackStatus('paused'));
             });
 
             let lastTrackId: any, lastPosition: any;
             this.audio.addEventListener('timeupdate', () => {
                 const status = this.getCurrentTrackStatus(this.lastState);
-                if (lastTrackId !== this.getCurrentTrackId() || lastPosition !== status.currentPosition) {
+                const now = Date.now();
+                if (
+                    lastTrackId !== this.getCurrentTrackId() ||
+                    lastPosition !== status.currentPosition ||
+                    now - this.lastPlaybackPositionEmitAt >= 250
+                ) {
                     this.updateStatus(RmxAudioStatusMessage.RMXSTATUS_PLAYBACK_POSITION, status);
                     lastTrackId = this.getCurrentTrackId();
                     lastPosition = status.currentPosition;
+                    this.lastPlaybackPositionEmitAt = now;
                 }
             });
 
@@ -389,13 +409,20 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
 
     protected getCurrentTrackStatus(currentState: string) {
         this.lastState = currentState;
+        const duration = this.getFiniteNumber(this.audio?.duration);
+        const currentPosition = this.getFiniteNumber(this.audio?.currentTime);
+        const bufferEnd = this.getBufferEnd();
         return {
             trackId: this.getCurrentTrackId(),
             isStream: !!this.currentTrack?.isStream,
             currentIndex: this.getCurrentIndex(),
             status: currentState,
-            currentPosition: this.audio?.currentTime || 0,
-            duration: this.audio?.duration || 0,
+            currentPosition,
+            duration,
+            playbackPercent: duration > 0 ? (currentPosition / duration) * 100 : 0,
+            bufferPercent: duration > 0 ? (bufferEnd / duration) * 100 : 0,
+            bufferStart: 0,
+            bufferEnd,
         };
     }
 
@@ -411,14 +438,14 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
         if (item.assetUrl.includes('.m3u8')) {
             await this.loadHlsJs();
 
-            const hls = new Hls({
+            this.hlsInstance = new Hls({
                 autoStartLoad: true,
                 debug: false,
                 enableWorker: true,
             });
-            hls.attachMedia(this.audio);
-            hls.on(Hls.Events.MEDIA_ATTACHED, () => {
-                hls.loadSource(item.assetUrl);
+            this.hlsInstance.attachMedia(this.audio);
+            this.hlsInstance.on(Hls.Events.MEDIA_ATTACHED, () => {
+                this.hlsInstance.loadSource(item.assetUrl);
             });
 
             //this.registerHlsListeners(hls, position);
@@ -428,9 +455,8 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
 
         await this.registerHtmlListeners(position);
 
-        this.updateStatus(RmxAudioStatusMessage.RMXSTATUS_TRACK_CHANGED, {
-            currentItem: item
-        })
+        this.lastPlaybackPositionEmitAt = 0;
+        this.updateStatus(RmxAudioStatusMessage.RMXSTATUS_TRACK_CHANGED, this.getTrackChangeStatus(item))
 
         if (wasPlaying || forceAutoplay) {
             //this.play();
@@ -472,5 +498,34 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
                     reject();
                 };
             });
+    }
+
+    protected getTrackChangeStatus(item: AudioTrack) {
+        const currentIndex = this.playlistItems.findIndex((track) => track.trackId === item.trackId);
+        const isAtBeginning = currentIndex <= 0;
+        const isAtEnd = currentIndex === this.playlistItems.length - 1;
+        return {
+            currentItem: item,
+            currentIndex,
+            isAtEnd,
+            isAtBeginning,
+            hasNext: currentIndex >= 0 && !isAtEnd,
+            hasPrevious: currentIndex > 0
+        };
+    }
+
+    protected getFiniteNumber(value?: number) {
+        return Number.isFinite(value) ? value! : 0;
+    }
+
+    protected getBufferEnd() {
+        if (!this.audio || !Number.isFinite(this.audio.duration) || this.audio.duration <= 0) {
+            return 0;
+        }
+        let maxEnd = 0;
+        for (let index = 0; index < this.audio.buffered.length; index++) {
+            maxEnd = Math.max(maxEnd, this.audio.buffered.end(index));
+        }
+        return maxEnd;
     }
 }
