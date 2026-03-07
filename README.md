@@ -35,8 +35,8 @@ cordova, and here we wanna give back to the community our outcome, any help is a
 As with most capacitor plugins...
 
 ```
-npm i @mustafaj/capacitor-plugin-playlist
-npx cap sync
+pnpm add @mustafaj/capacitor-plugin-playlist
+pnpm exec cap sync
 ```
 
 ### For web
@@ -46,7 +46,7 @@ include hlsjs in your build
 #### E.G. for Angular 2+:
 
 ```
-npm i hls.js
+pnpm add hls.js
 ```
 
 then add to angular.json:
