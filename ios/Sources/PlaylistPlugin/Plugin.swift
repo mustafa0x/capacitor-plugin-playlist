@@ -40,6 +40,10 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater, CAPBridgedPlugin {
         CAPPluginMethod(name: "getLastKnownPosition", returnType: CAPPluginReturnPromise),
     ]
     let audioPlayerImpl = RmxAudioPlayer()
+
+    public override func load() {
+        audioPlayerImpl.bridge = bridge
+    }
     
     // MARK: - Capacitor API
     @objc func initialize(_ call: CAPPluginCall) {
