@@ -11,6 +11,10 @@ protocol StatusUpdater {
 @objc(PlaylistPlugin)
 public class PlaylistPlugin: CAPPlugin, StatusUpdater {
     let audioPlayerImpl = RmxAudioPlayer()
+
+    public override func load() {
+        audioPlayerImpl.bridge = bridge
+    }
     
     // MARK: - Capacitor API
     @objc func initialize(_ call: CAPPluginCall) {

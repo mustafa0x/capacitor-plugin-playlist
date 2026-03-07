@@ -14,9 +14,15 @@ import UIKit
 
 extension String: Error {}
 
+private enum ArtworkSource {
+    case localFile(String)
+    case remoteURL(URL)
+}
+
 final class RmxAudioPlayer: NSObject {
 
     var statusUpdater: StatusUpdater? = nil
+    weak var bridge: CAPBridgeProtocol? = nil
 
     private var playbackTimeObserver: Any?
     private var wasPlayingInterrupted = false
@@ -673,7 +679,7 @@ final class RmxAudioPlayer: NSObject {
                 updatedNowPlayingInfo![MPMediaItemPropertyTitle] = currentItem?.title
                 updatedNowPlayingInfo![MPMediaItemPropertyAlbumTitle] = currentItem?.album
 
-                updateNowPlayingArtwork(currentItem?.albumArt?.absoluteString)
+                updateNowPlayingArtwork(currentItem?.albumArt)
             }
             updatedNowPlayingInfo![MPMediaItemPropertyPlaybackDuration] = duration ?? 0.0
             updatedNowPlayingInfo![MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime ?? 0.0
@@ -693,11 +699,19 @@ final class RmxAudioPlayer: NSObject {
             return
         }
 
-        if coverUri.hasPrefix("http://") || coverUri.hasPrefix("https://") {
-            guard let coverImageUrl = URL(string: coverUri) else {
+        guard let artworkSource = resolveArtworkSource(coverUri) else {
+            updatedNowPlayingInfo?.removeValue(forKey: MPMediaItemPropertyArtwork)
+            return
+        }
+
+        switch artworkSource {
+        case .localFile(let coverImagePath):
+            if let mediaItemArtwork = createCoverArtwork(at: coverImagePath) {
+                updatedNowPlayingInfo?[MPMediaItemPropertyArtwork] = mediaItemArtwork
+            } else {
                 updatedNowPlayingInfo?.removeValue(forKey: MPMediaItemPropertyArtwork)
-                return
             }
+        case .remoteURL(let coverImageUrl):
             downloadImage(url: coverImageUrl) { [weak self] image in
                 guard
                     let self = self,
@@ -711,31 +725,62 @@ final class RmxAudioPlayer: NSObject {
                     MPNowPlayingInfoCenter.default().nowPlayingInfo = self.updatedNowPlayingInfo
                 }
             }
-            return
-        }
-
-        if let mediaItemArtwork = createCoverArtwork(coverUri) {
-            updatedNowPlayingInfo?[MPMediaItemPropertyArtwork] = mediaItemArtwork
-        } else {
-            updatedNowPlayingInfo?.removeValue(forKey: MPMediaItemPropertyArtwork)
         }
     }
 
-    func createCoverArtwork(_ coverUriOrNil: String?) -> MPMediaItemArtwork? {
-        guard let coverUri = coverUriOrNil else {
+    private func createCoverArtwork(at coverImagePath: String) -> MPMediaItemArtwork? {
+        guard FileManager.default.fileExists(atPath: coverImagePath) else {
             return nil
         }
-        var coverImage: UIImage? = nil
-        if FileManager.default.fileExists(atPath: coverUri) {
-            coverImage = UIImage(contentsOfFile: coverUri)
+
+        let coverImage = UIImage(contentsOfFile: coverImagePath)
+        guard isCoverImageValid(coverImage) else {
+            return nil
         }
 
-        if isCoverImageValid(coverImage) {
-            return MPMediaItemArtwork.init(boundsSize: coverImage!.size, requestHandler: { (size) -> UIImage in
-                return coverImage!
-            })
+        return MPMediaItemArtwork.init(boundsSize: coverImage!.size, requestHandler: { (size) -> UIImage in
+            return coverImage!
+        })
+    }
+
+    private func resolveArtworkSource(_ coverUri: String) -> ArtworkSource? {
+        if FileManager.default.fileExists(atPath: coverUri) {
+            return .localFile(coverUri)
+        }
+
+        if let directURL = URL(string: coverUri), directURL.scheme != nil {
+            if directURL.isFileURL {
+                return .localFile(directURL.path)
+            }
+            if let localCoverURL = bridge?.localURL(fromWebURL: directURL), localCoverURL.isFileURL {
+                return .localFile(localCoverURL.path)
+            }
+            if isRemoteArtworkURL(directURL) {
+                return .remoteURL(directURL)
+            }
+            return nil
+        }
+
+        guard let serverURL = bridge?.config.serverURL,
+              let resolvedURL = URL(string: coverUri, relativeTo: serverURL)?.absoluteURL
+        else {
+            return nil
+        }
+
+        if let localCoverURL = bridge?.localURL(fromWebURL: resolvedURL), localCoverURL.isFileURL {
+            return .localFile(localCoverURL.path)
+        }
+        if isRemoteArtworkURL(resolvedURL) {
+            return .remoteURL(resolvedURL)
         }
         return nil;
+    }
+
+    private func isRemoteArtworkURL(_ url: URL) -> Bool {
+        guard let scheme = url.scheme?.lowercased() else {
+            return false
+        }
+        return scheme == "http" || scheme == "https"
     }
 
     func downloadImage(url: URL, completion: @escaping ((_ image: UIImage?) -> Void)){

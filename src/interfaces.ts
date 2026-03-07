@@ -139,6 +139,53 @@ export interface AudioTrackRemoval {
     trackIndex?: number;
 }
 
+export type PlaybackSnapshotState = 'unknown' | 'ready' | 'error' | 'playing' | 'loading' | 'paused' | 'stopped'
+
+/**
+ * A low-level snapshot of the wrapper's current playback clock state.
+ * `observedPosition` is the last authoritative position reported or commanded,
+ * and `observedAt` is when that position was recorded. Consumers can derive a
+ * live display position from this snapshot however they wish.
+ */
+export interface PlaybackSnapshot {
+    /**
+     * The current active track ID, if any.
+     */
+    trackId: string | null;
+    /**
+     * The current active track, if any.
+     */
+    currentItem: AudioTrack | null;
+    /**
+     * The wrapper's current summarized playback state.
+     */
+    state: PlaybackSnapshotState;
+    /**
+     * The last authoritative playback position observed by the wrapper.
+     */
+    observedPosition: number;
+    /**
+     * The `performance.now()` timestamp at which `observedPosition` was recorded.
+     */
+    observedAt: number;
+    /**
+     * The currently known track duration, if any.
+     */
+    duration: number;
+    /**
+     * The currently configured playback rate.
+     */
+    rate: number;
+    /**
+     * Indicates whether the current track has loaded enough to play.
+     */
+    hasLoaded: boolean;
+    /**
+     * Indicates whether the current track has entered an error state.
+     */
+    hasError: boolean;
+}
+
 /**
  * Encapsulates the data received by an onStatus callback
  */

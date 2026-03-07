@@ -8,6 +8,7 @@ import {
     AudioPlayerEventHandler,
     AudioPlayerEventHandlers,
     AudioPlayerOptions,
+    PlaybackSnapshot,
     AudioTrack,
     AudioTrackRemoval,
     OnStatusCallback,
@@ -36,6 +37,17 @@ const itemStatusChangeTypes = [
     RmxAudioStatusMessage.RMXSTATUS_COMPLETED,
     RmxAudioStatusMessage.RMXSTATUS_ERROR,
 ];
+
+export const estimatePlaybackPosition = (snapshot: PlaybackSnapshot, now: number = performance.now()) => {
+    const duration = snapshot.duration || 0;
+    if (snapshot.state !== 'playing') {
+        return duration ? Math.min(snapshot.observedPosition, duration) : snapshot.observedPosition;
+    }
+
+    const elapsed = Math.max(0, (now - snapshot.observedAt) / 1000);
+    const nextPosition = snapshot.observedPosition + elapsed * snapshot.rate;
+    return duration ? Math.min(nextPosition, duration) : nextPosition;
+};
 
 export class RmxAudioPlayer {
     handlers: AudioPlayerEventHandlers = {};
@@ -82,15 +94,22 @@ export class RmxAudioPlayer {
         return this._currentItem;
     }
 
-    get currentPosition() {
-        const duration = this._currentDuration || 0;
-        if (this._currentState !== 'playing') {
-            return duration ? Math.min(this._currentPosition, duration) : this._currentPosition;
-        }
+    get playbackSnapshot(): PlaybackSnapshot {
+        return {
+            trackId: this._currentItem?.trackId || null,
+            currentItem: this._currentItem,
+            state: this._currentState,
+            observedPosition: this._currentPosition,
+            observedAt: this._currentPositionUpdatedAt,
+            duration: this._currentDuration,
+            rate: this._playbackRate,
+            hasLoaded: this._hasLoaded,
+            hasError: this._hasError
+        };
+    }
 
-        const elapsed = Math.max(0, (performance.now() - this._currentPositionUpdatedAt) / 1000);
-        const nextPosition = this._currentPosition + elapsed * this._playbackRate;
-        return duration ? Math.min(nextPosition, duration) : nextPosition;
+    get currentPosition() {
+        return estimatePlaybackPosition(this.playbackSnapshot);
     }
 
     get currentDuration() {

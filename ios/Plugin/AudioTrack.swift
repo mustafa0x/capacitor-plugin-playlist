@@ -10,7 +10,7 @@ final class AudioTrack: AVPlayerItem {
     var isStream = false
     var trackId: String?
     var assetUrl: URL?
-    var albumArt: URL?
+    var albumArt: String?
     var artist: String?
     var album: String?
     var title: String?
@@ -37,8 +37,7 @@ final class AudioTrack: AVPlayerItem {
             track.isStream = isStreamStr.boolValue
         }
         
-        let albumArt = trackInfo["albumArt"] as? String
-        track.albumArt = albumArt != nil ? URL(string: albumArt!) : nil
+        track.albumArt = trackInfo["albumArt"] as? String
         
         track.trackId = trackId
         track.assetUrl = assetUrl
@@ -54,7 +53,7 @@ final class AudioTrack: AVPlayerItem {
             "isStream": NSNumber(value: isStream),
             "trackId": trackId ?? "",
             "assetUrl": assetUrl?.absoluteString ?? "",
-            "albumArt": albumArt?.absoluteString ?? "",
+            "albumArt": albumArt ?? "",
             "artist": artist ?? "",
             "album": album ?? "",
             "title": title ?? ""
