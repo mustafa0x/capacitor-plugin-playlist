@@ -56,6 +56,18 @@ export class RmxAudioPlayer {
     private _currentPositionUpdatedAt = performance.now();
     private _playbackRate = 1;
 
+    private syncCurrentPosition(position: number, exact: boolean = false) {
+        const now = performance.now();
+        if (!exact && this._currentState === 'playing') {
+            const estimated = this.currentPosition;
+            if (position < estimated && estimated - position <= 0.1) {
+                position = estimated;
+            }
+        }
+        this._currentPosition = position;
+        this._currentPositionUpdatedAt = now;
+    }
+
     /**
      * The current summarized state of the player, as a string. It is preferred that you use the 'isX' accessors,
      * because they properly interpret the range of these values, but this field is exposed if you wish to observe
@@ -270,8 +282,7 @@ export class RmxAudioPlayer {
 
     playTrackByIndex = (index: number, position?: number) => {
         if (position !== undefined) {
-            this._currentPosition = position || 0;
-            this._currentPositionUpdatedAt = performance.now();
+            this.syncCurrentPosition(position || 0, true);
         }
         return Playlist.playTrackByIndex({index, position: position || 0});
     };
@@ -281,8 +292,7 @@ export class RmxAudioPlayer {
      */
     playTrackById = (id: string, position?: number) => {
         if (position !== undefined) {
-            this._currentPosition = position || 0;
-            this._currentPositionUpdatedAt = performance.now();
+            this.syncCurrentPosition(position || 0, true);
         }
         return Playlist.playTrackById({id, position: position || 0});
     };
@@ -292,8 +302,7 @@ export class RmxAudioPlayer {
      */
     selectTrackByIndex = (index: number, position?: number) => {
         if (position !== undefined) {
-            this._currentPosition = position || 0;
-            this._currentPositionUpdatedAt = performance.now();
+            this.syncCurrentPosition(position || 0, true);
         }
         return Playlist.selectTrackByIndex({index, position: position || 0});
     };
@@ -303,8 +312,7 @@ export class RmxAudioPlayer {
      */
     selectTrackById = (id: string, position?: number) => {
         if (position !== undefined) {
-            this._currentPosition = position || 0;
-            this._currentPositionUpdatedAt = performance.now();
+            this.syncCurrentPosition(position || 0, true);
         }
         return Playlist.selectTrackById({id, position: position || 0});
     };
@@ -336,8 +344,7 @@ export class RmxAudioPlayer {
      * the track will complete and playback of the next track will begin.
      */
     seekTo = (position: number) => {
-        this._currentPosition = position;
-        this._currentPositionUpdatedAt = performance.now();
+        this.syncCurrentPosition(position, true);
         return Playlist.seekTo({position});
     };
 
@@ -346,8 +353,7 @@ export class RmxAudioPlayer {
      */
     setPlaybackRate = (rate: number) => {
         this._playbackRate = rate || 1;
-        this._currentPosition = this.currentPosition;
-        this._currentPositionUpdatedAt = performance.now();
+        this.syncCurrentPosition(this.currentPosition, true);
         return Playlist.setPlaybackRate({rate});
     };
 
@@ -397,8 +403,7 @@ export class RmxAudioPlayer {
             // Only change the plugin's *current status* if the event being raised is for the current active track.
             if (this._currentItem && this._currentItem.trackId === trackId) {
                 if (status.msgType === RmxAudioStatusMessage.RMXSTATUS_PLAYBACK_POSITION && status.value && (<any> status.value).currentPosition !== undefined) {
-                    this._currentPosition = (<any> status.value).currentPosition;
-                    this._currentPositionUpdatedAt = performance.now();
+                    this.syncCurrentPosition((<any> status.value).currentPosition);
                 }
 
                 if (status.msgType === RmxAudioStatusMessage.RMXSTATUS_DURATION && status.value && (<any> status.value).duration !== undefined) {
@@ -417,8 +422,7 @@ export class RmxAudioPlayer {
                 ) {
                     const currentPosition = (<any> status.value)?.currentPosition ?? (<any> status.value)?.position;
                     if (currentPosition !== undefined) {
-                        this._currentPosition = currentPosition;
-                        this._currentPositionUpdatedAt = performance.now();
+                        this.syncCurrentPosition(currentPosition, status.msgType !== RmxAudioStatusMessage.RMXSTATUS_PLAYING);
                     }
                 }
 
