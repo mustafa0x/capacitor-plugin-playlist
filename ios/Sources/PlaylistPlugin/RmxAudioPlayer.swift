@@ -48,7 +48,7 @@ final class RmxAudioPlayer: NSObject {
     private var playbackTimeObserver: Any?
     private var wasPlayingInterrupted = false
     private var commandCenterRegistered = false
-    private var resetStreamOnPause = false
+    private var resetStreamOnPause = true
     private var updatedNowPlayingInfo: [String : Any]?
     private let nowPlayingInfoQueue = DispatchQueue(label: "RMXAudioPlayerNowPlayingQueue")
     private var isReplacingItems = false
@@ -75,7 +75,7 @@ final class RmxAudioPlayer: NSObject {
 
     func setOptions(_ options: [String:Any]) {
         print("RmxAudioPlayer.execute=setOptions, \(options)")
-        resetStreamOnPause = (options["resetStreamOnPause"] as? NSNumber)?.boolValue ?? false
+        resetStreamOnPause = (options["resetStreamOnPause"] as? NSNumber)?.boolValue ?? true
     }
 
     func initialize() {
@@ -112,7 +112,7 @@ final class RmxAudioPlayer: NSObject {
 
         let playFromId = ((options["playFromId"] != nil) ? options["playFromId"] : nil) as? String
 
-        let startPaused = options["startPaused"] != nil ? (options["startPaused"] as? Bool) ?? false : true
+        let startPaused = options["startPaused"] != nil ? (options["startPaused"] as? Bool) ?? false : false
 
         if playFromPosition > 0.0 {
             seekToPosition = playFromPosition
@@ -244,14 +244,17 @@ final class RmxAudioPlayer: NSObject {
     /// These are basically just passing through to the core functionality of the queue and this player.
     ///
     /// These functions don't really do anything interesting by themselves.
-    func selectTrack(index: Int) throws {
+    func selectTrack(index: Int, positionTime: Float? = nil) throws {
         guard index >= 0 && index < avQueuePlayer.queuedAudioTracks.count else {
             throw RmxAudioPlayerError.indexOutOfPlaylistBounds
         }
         avQueuePlayer.setCurrentIndex(index)
+        if positionTime != nil {
+            seek(to: positionTime!, isCommand: false)
+        }
     }
 
-    func selectTrack(id: String) throws {
+    func selectTrack(id: String, positionTime: Float? = nil) throws {
         guard !avQueuePlayer.queuedAudioTracks.isEmpty else {
             throw RmxAudioPlayerError.queueEmpty
         }
@@ -263,6 +266,9 @@ final class RmxAudioPlayer: NSObject {
             throw "Track ID not found"
         }
         avQueuePlayer.setCurrentIndex(idx)
+        if positionTime != nil {
+            seek(to: positionTime!, isCommand: false)
+        }
     }
 
     func removeItem(_ index: Int) throws {
@@ -770,7 +776,11 @@ final class RmxAudioPlayer: NSObject {
         self.getImageDataFromUrl(url) { (_ data: Data?) in
             DispatchQueue.main.async {
                 print("Finished downloading \"\(url.deletingPathExtension().lastPathComponent)\".")
-                completion(UIImage(data: data!))
+                guard let data = data else {
+                    completion(nil)
+                    return
+                }
+                completion(UIImage(data: data))
             }
         }
     }
@@ -1005,6 +1015,15 @@ final class RmxAudioPlayer: NSObject {
         let duration = Float(CMTimeGetSeconds(playerItem.duration))
         let timeRanges = playerItem.loadedTimeRanges
 
+        guard duration > 0 else {
+            return [
+                "start": NSNumber(value: 0.0),
+                "end": NSNumber(value: 0.0),
+                "bufferPercent": NSNumber(value: 0.0),
+                "duration": NSNumber(value: 0.0)
+            ]
+        }
+
         guard !timeRanges.isEmpty else {
             return [
                 "start": NSNumber(value: 0.0),
@@ -1014,10 +1033,18 @@ final class RmxAudioPlayer: NSObject {
             ]
         }
 
-        let timerange = timeRanges[0].timeRangeValue
-        let start = Float(CMTimeGetSeconds(timerange.start))
-        let rangeEnd = Float(CMTimeGetSeconds(timerange.duration))
-        let bufferPercent = (rangeEnd / duration) * 100.0
+        var start = Float(0.0)
+        var rangeEnd = Float(0.0)
+        for value in timeRanges {
+            let timerange = value.timeRangeValue
+            let segmentStart = Float(CMTimeGetSeconds(timerange.start))
+            let segmentEnd = segmentStart + Float(CMTimeGetSeconds(timerange.duration))
+            if segmentEnd >= rangeEnd {
+                start = segmentStart
+                rangeEnd = segmentEnd
+            }
+        }
+        let bufferPercent = min((rangeEnd / duration) * 100.0, 100.0)
 
         return [
             "start": NSNumber(value: start),
