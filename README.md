@@ -106,8 +106,8 @@ Uses a customized AVQueuePlayer (`AVBidirectionalQueuePlayer`) for track-change 
 ## Installation
 
 ```
-npm i @mustafaj/capacitor-plugin-playlist
-npx cap sync
+pnpm add @mustafaj/capacitor-plugin-playlist
+pnpm exec cap sync
 ```
 
 ### Web
@@ -117,7 +117,7 @@ Include HLS.js in your build for HLS streams.
 #### Angular example
 
 ```
-npm i hls.js
+pnpm add hls.js
 ```
 
 Add to `angular.json` → architect → build → options → scripts:
