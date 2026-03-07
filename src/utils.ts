@@ -23,6 +23,9 @@ export const validateTrack = (track: AudioTrack) => {
     if (!track) {
         return null;
     }
+    if (track.trackId !== undefined && track.trackId !== null) {
+        track.trackId = String(track.trackId);
+    }
     // For now we will rely on TS to do the heavy lifting, but we can add a validation here
     // that all the required fields are valid. For now we just take care of the unique ID.
     track.trackId = track.trackId || generateUUID();

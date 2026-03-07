@@ -168,7 +168,7 @@ Example:
 import {Playlist, AudioTrack} from '@mustafaj/capacitor-plugin-playlist'
 
 const item: AudioTrack = {
-    trackId: 1,
+    trackId: 'track-1',
     assetUrl: 'http://your_audio',
     albumArt: 'http://some_image'
 }
