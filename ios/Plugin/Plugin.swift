@@ -29,8 +29,8 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater {
         call.resolve();
     }
     @objc func setPlaylistItems(_ call: CAPPluginCall) {
-        let items = call.getArray("items", [String:Any].self)!
-        let options = call.getObject("options")!
+        let items = call.getArray("items", [String:Any].self) ?? []
+        let options = call.getObject("options") ?? [:]
         
         let tracks = createTracks(items)
         audioPlayerImpl.setPlaylistItems(tracks, options: options)
@@ -40,13 +40,16 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater {
     @objc func addItem(_ call: CAPPluginCall) {
         let trackInfo = call.getObject("item")
         
-        let track = AudioTrack.initWithDictionary(trackInfo)
-        audioPlayerImpl.addItem(track!)
+        guard let track = AudioTrack.initWithDictionary(trackInfo) else {
+            call.reject("Invalid track item")
+            return
+        }
+        audioPlayerImpl.addItem(track)
         
         call.resolve();
     }
     @objc func addAllItems(_ call: CAPPluginCall) {
-        let items = call.getArray("items", [String:Any].self)!
+        let items = call.getArray("items", [String:Any].self) ?? []
         
         let tracks = createTracks(items)
         audioPlayerImpl.addAllItems(tracks)
@@ -145,7 +148,7 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater {
         }
         
         do {
-            try audioPlayerImpl.selectTrack(index: index)
+            try audioPlayerImpl.selectTrack(index: index, positionTime: call.getFloat("position"))
             call.resolve();
         }
         catch let message {
@@ -159,7 +162,7 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater {
         }
         
         do {
-            try audioPlayerImpl.selectTrack(id: id)
+            try audioPlayerImpl.selectTrack(id: id, positionTime: call.getFloat("position"))
             call.resolve();
         }
         catch let message {
