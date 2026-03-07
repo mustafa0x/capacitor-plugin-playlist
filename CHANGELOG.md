@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.11
+
+### Changed
+
+- Simplified iOS now playing artwork resolution to a single URL-based path for local files, Capacitor-hosted assets, and remote artwork URLs.
+
 ## 0.9.10
 
 ### Fixed
