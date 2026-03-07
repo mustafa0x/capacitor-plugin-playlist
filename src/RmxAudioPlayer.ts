@@ -60,7 +60,8 @@ export class RmxAudioPlayer {
         const now = performance.now();
         if (!exact && this._currentState === 'playing') {
             const estimated = this.currentPosition;
-            if (position < estimated && estimated - position <= 0.1) {
+            const max_backward_correction = 0.1 * Math.max(1, this._playbackRate);
+            if (position < estimated && estimated - position <= max_backward_correction) {
                 position = estimated;
             }
         }
