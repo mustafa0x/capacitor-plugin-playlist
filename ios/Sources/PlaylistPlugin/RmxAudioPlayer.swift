@@ -41,11 +41,6 @@ enum RmxAudioPlayerError: Error, LocalizedError {
     }
 }
 
-private enum ArtworkSource {
-    case localFile(String)
-    case remoteURL(URL)
-}
-
 final class RmxAudioPlayer: NSObject {
 
     var statusUpdater: StatusUpdater? = nil
@@ -732,41 +727,41 @@ final class RmxAudioPlayer: NSObject {
             return
         }
 
-        guard let artworkSource = resolveArtworkSource(coverUri) else {
+        guard let artworkURL = resolveArtworkURL(coverUri) else {
             updatedNowPlayingInfo?.removeValue(forKey: MPMediaItemPropertyArtwork)
             return
         }
 
-        switch artworkSource {
-        case .localFile(let coverImagePath):
-            if let mediaItemArtwork = createCoverArtwork(at: coverImagePath) {
+        if artworkURL.isFileURL {
+            if let mediaItemArtwork = createCoverArtwork(at: artworkURL) {
                 updatedNowPlayingInfo?[MPMediaItemPropertyArtwork] = mediaItemArtwork
             } else {
                 updatedNowPlayingInfo?.removeValue(forKey: MPMediaItemPropertyArtwork)
             }
-        case .remoteURL(let coverImageUrl):
-            downloadImage(url: coverImageUrl) { [weak self] image in
-                guard
-                    let self = self,
-                    self.isCoverImageValid(image)
-                else {
-                    return
-                }
-                let artwork = MPMediaItemArtwork(boundsSize: image!.size) { _ in image! }
-                self.nowPlayingInfoQueue.sync {
-                    self.updatedNowPlayingInfo?[MPMediaItemPropertyArtwork] = artwork
-                    MPNowPlayingInfoCenter.default().nowPlayingInfo = self.updatedNowPlayingInfo
-                }
+            return
+        }
+
+        downloadImage(url: artworkURL) { [weak self] image in
+            guard
+                let self = self,
+                self.isCoverImageValid(image)
+            else {
+                return
+            }
+            let artwork = MPMediaItemArtwork(boundsSize: image!.size) { _ in image! }
+            self.nowPlayingInfoQueue.sync {
+                self.updatedNowPlayingInfo?[MPMediaItemPropertyArtwork] = artwork
+                MPNowPlayingInfoCenter.default().nowPlayingInfo = self.updatedNowPlayingInfo
             }
         }
     }
 
-    private func createCoverArtwork(at coverImagePath: String) -> MPMediaItemArtwork? {
-        guard FileManager.default.fileExists(atPath: coverImagePath) else {
+    private func createCoverArtwork(at artworkURL: URL) -> MPMediaItemArtwork? {
+        guard FileManager.default.fileExists(atPath: artworkURL.path) else {
             return nil
         }
 
-        let coverImage = UIImage(contentsOfFile: coverImagePath)
+        let coverImage = UIImage(contentsOfFile: artworkURL.path)
         guard isCoverImageValid(coverImage) else {
             return nil
         }
@@ -776,20 +771,20 @@ final class RmxAudioPlayer: NSObject {
         })
     }
 
-    private func resolveArtworkSource(_ coverUri: String) -> ArtworkSource? {
+    private func resolveArtworkURL(_ coverUri: String) -> URL? {
         if FileManager.default.fileExists(atPath: coverUri) {
-            return .localFile(coverUri)
+            return URL(fileURLWithPath: coverUri)
         }
 
         if let directURL = URL(string: coverUri), directURL.scheme != nil {
             if directURL.isFileURL {
-                return .localFile(directURL.path)
+                return directURL
             }
             if let localCoverURL = bridge?.localURL(fromWebURL: directURL), localCoverURL.isFileURL {
-                return .localFile(localCoverURL.path)
+                return localCoverURL
             }
-            if isRemoteArtworkURL(directURL) {
-                return .remoteURL(directURL)
+            if isNetworkArtworkURL(directURL) {
+                return directURL
             }
             return nil
         }
@@ -801,15 +796,15 @@ final class RmxAudioPlayer: NSObject {
         }
 
         if let localCoverURL = bridge?.localURL(fromWebURL: resolvedURL), localCoverURL.isFileURL {
-            return .localFile(localCoverURL.path)
+            return localCoverURL
         }
-        if isRemoteArtworkURL(resolvedURL) {
-            return .remoteURL(resolvedURL)
+        if isNetworkArtworkURL(resolvedURL) {
+            return resolvedURL
         }
-        return nil;
+        return nil
     }
 
-    private func isRemoteArtworkURL(_ url: URL) -> Bool {
+    private func isNetworkArtworkURL(_ url: URL) -> Bool {
         guard let scheme = url.scheme?.lowercased() else {
             return false
         }
