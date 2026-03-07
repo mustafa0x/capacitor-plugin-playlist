@@ -3,6 +3,7 @@ package org.dwbn.plugins.playlist
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.devbrackets.android.playlistcore.manager.BasePlaylistManager
 import com.devbrackets.android.playlistcore.data.MediaProgress
 import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
@@ -259,14 +260,16 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
         Handler(Looper.getMainLooper()).post {
             val id: String = call.getString("id")!!
             if ("" != id) {
-                val code = id.hashCode()
                 val seekPosition = (call.getFloat("position", 0f)!! * 1000.0f).toLong()
-                audioPlayerImpl!!.playlistManager.setCurrentItem(code.toLong())
-                audioPlayerImpl!!.clearTrackSelectionSuppression()
-                val handler = audioPlayerImpl!!.playlistManager.playlistHandler
-                val alreadyPlaying = handler?.currentMediaPlayer?.isPlaying == true
-                if (!audioPlayerImpl!!.tryResumeVideoHandoffInPlace(seekPosition) && !alreadyPlaying) {
-                    audioPlayerImpl!!.playlistManager.beginPlayback(seekPosition, false)
+                val itemPosition = audioPlayerImpl!!.playlistManager.findItemPosition(id)
+                if (itemPosition != BasePlaylistManager.INVALID_POSITION) {
+                    audioPlayerImpl!!.playlistManager.currentPosition = itemPosition
+                    audioPlayerImpl!!.clearTrackSelectionSuppression()
+                    val handler = audioPlayerImpl!!.playlistManager.playlistHandler
+                    val alreadyPlaying = handler?.currentMediaPlayer?.isPlaying == true
+                    if (!audioPlayerImpl!!.tryResumeVideoHandoffInPlace(seekPosition) && !alreadyPlaying) {
+                        audioPlayerImpl!!.playlistManager.beginPlayback(seekPosition, false)
+                    }
                 }
             }
 
@@ -301,14 +304,13 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
         Handler(Looper.getMainLooper()).post {
             val id: String = call.getString("id")!!
             if ("" != id) {
-                // alternatively we could search for the item and set the current index to that item.
-                val code = id.hashCode()
-                audioPlayerImpl!!.playlistManager.setCurrentItem(code.toLong())
-                audioPlayerImpl!!.prepareForTrackSelection(id)
-
                 val seekPosition = (call.getFloat("position", 0f)!! * 1000.0f).toLong()
-
-                audioPlayerImpl!!.playlistManager.beginPlayback(seekPosition, true)
+                val itemPosition = audioPlayerImpl!!.playlistManager.findItemPosition(id)
+                if (itemPosition != BasePlaylistManager.INVALID_POSITION) {
+                    audioPlayerImpl!!.playlistManager.currentPosition = itemPosition
+                    audioPlayerImpl!!.prepareForTrackSelection(id)
+                    audioPlayerImpl!!.playlistManager.beginPlayback(seekPosition, true)
+                }
             }
             call.resolve()
 

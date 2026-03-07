@@ -5,8 +5,21 @@ import com.devbrackets.android.playlistcore.api.PlaylistItem
 import com.devbrackets.android.playlistcore.manager.BasePlaylistManager
 import org.json.JSONException
 import org.json.JSONObject
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 class AudioTrack (private val config: JSONObject) : PlaylistItem {
+    companion object {
+        private val stable_ids = ConcurrentHashMap<String, Long>()
+        private val next_stable_id = AtomicLong(1)
+
+        fun stableIdFor(trackId: String): Long {
+            return stable_ids.computeIfAbsent(trackId) {
+                next_stable_id.getAndIncrement()
+            }
+        }
+    }
+
     var bufferPercentFloat = 0f
         set(buff) {
             // There is a bug in MediaProgress where if bufferPercent == 100 it sets bufferPercentFloat
@@ -42,7 +55,7 @@ class AudioTrack (private val config: JSONObject) : PlaylistItem {
         get() =
             if (trackId == null) {
                 0
-            } else trackId.hashCode().toLong()
+            } else stableIdFor(trackId!!)
 
     val isStream: Boolean
         get() = config.optBoolean("isStream", false)

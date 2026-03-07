@@ -104,6 +104,12 @@ class PlaylistManager(application: Application) :
      * List management
      */
     fun setAllItems(items: List<AudioTrack>?, options: PlaylistItemOptions) {
+        val retainedPosition =
+            if (options.retainPosition) {
+                currentProgress?.position ?: 0
+            } else {
+                0
+            }
         clearItems()
         addAllItems(items)
         currentPosition = 0
@@ -112,10 +118,7 @@ class PlaylistManager(application: Application) :
         if (options.playFromPosition > 0) {
             seekStart = options.playFromPosition
         } else if (options.retainPosition) {
-            val progress = currentProgress
-            if (progress != null) {
-              seekStart = progress.position
-            }
+            seekStart = retainedPosition
         }
 
         // If the options said to start from a specific id, do so.
@@ -124,8 +127,10 @@ class PlaylistManager(application: Application) :
             idStart = options.playFromId
         }
         if (idStart != null && "" != idStart) {
-            val code = idStart.hashCode()
-            setCurrentItem(code.toLong())
+            val itemPosition = findItemPosition(idStart)
+            if (itemPosition != INVALID_POSITION) {
+                currentPosition = itemPosition
+            }
         }
 
         // We assume that if the playlist is fully loaded in one go,
@@ -164,7 +169,8 @@ class PlaylistManager(application: Application) :
         if (playlistHandler != null) {
             playlistHandler!!.pause(true)
         }
-        var currentPosition = currentPosition
+        val previousPosition = currentPosition
+        val currentItem = currentItem
         var foundItem: AudioTrack? = null
         var removingCurrent = false
 
@@ -185,7 +191,14 @@ class PlaylistManager(application: Application) :
             audioTracks.removeAt(resolvedIndex)
         }
         items = audioTracks
-        currentPosition = if (removingCurrent) currentPosition else audioTracks.indexOf(currentItem)
+        currentPosition =
+            if (audioTracks.isEmpty()) {
+                INVALID_POSITION
+            } else if (removingCurrent) {
+                previousPosition.coerceAtMost(audioTracks.lastIndex)
+            } else {
+                audioTracks.indexOf(currentItem).takeIf { it >= 0 } ?: INVALID_POSITION
+            }
         // If removing the current item, start from beginning (0), otherwise preserve playback position
         val seekStart = if (removingCurrent) 0 else seekPosition
         beginPlayback(seekStart, !wasPlaying)
@@ -201,8 +214,8 @@ class PlaylistManager(application: Application) :
         if (playlistHandler != null) {
             playlistHandler!!.pause(true)
         }
-        var currentPosition = currentPosition
-        val currentItem = currentItem // may be null
+        val previousPosition = currentPosition
+        val currentItem = currentItem
         var removingCurrent = false
 
         // Get the current playback position in milliseconds before removing items
@@ -236,7 +249,14 @@ class PlaylistManager(application: Application) :
             }
         }
         items = audioTracks
-        currentPosition = if (removingCurrent) currentPosition else audioTracks.indexOf(currentItem)
+        currentPosition =
+            if (audioTracks.isEmpty()) {
+                INVALID_POSITION
+            } else if (removingCurrent) {
+                previousPosition.coerceAtMost(audioTracks.lastIndex)
+            } else {
+                audioTracks.indexOf(currentItem).takeIf { it >= 0 } ?: INVALID_POSITION
+            }
         // If removing the current item, start from beginning (0), otherwise preserve playback position
         val seekStart = if (removingCurrent) 0 else seekPosition
         beginPlayback(seekStart, !wasPlaying)
@@ -259,12 +279,23 @@ class PlaylistManager(application: Application) :
         if (trackIndex >= 0 && trackIndex < audioTracks.size) {
             resolvedPosition = trackIndex
         } else if ("" != trackId) {
-            val itemPos = getPositionForItem(trackId.hashCode().toLong())
+            val itemPos = getPositionForItem(AudioTrack.stableIdFor(trackId))
             if (itemPos != INVALID_POSITION) {
                 resolvedPosition = itemPos
             }
         }
         return resolvedPosition
+    }
+
+    fun findItemPosition(trackId: String?): Int {
+        if (trackId.isNullOrEmpty()) {
+            return INVALID_POSITION
+        }
+        val itemPos = getPositionForItem(AudioTrack.stableIdFor(trackId))
+        if (itemPos != INVALID_POSITION) {
+            return itemPos
+        }
+        return audioTracks.indexOfFirst { it.trackId == trackId }
     }
 
     fun getVolumeLeft(): Float {
