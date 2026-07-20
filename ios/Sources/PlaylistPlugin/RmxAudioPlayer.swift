@@ -264,7 +264,7 @@ final class RmxAudioPlayer: NSObject {
             let idx = (result["index"] as? NSNumber)?.intValue,
             idx >= 0
         else {
-            throw "Track ID not found"
+            throw RmxAudioPlayerError.trackIdNotFound
         }
         avQueuePlayer.setCurrentIndex(idx)
         if positionTime != nil {

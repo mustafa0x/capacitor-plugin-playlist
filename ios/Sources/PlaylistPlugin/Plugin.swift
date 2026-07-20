@@ -41,10 +41,6 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater, CAPBridgedPlugin {
     ]
     let audioPlayerImpl = RmxAudioPlayer()
 
-    public override func load() {
-        audioPlayerImpl.bridge = bridge
-    }
-    
     // MARK: - Capacitor API
     @objc func initialize(_ call: CAPPluginCall) {
         // Ensure we don't drop the initial REGISTER status event.
@@ -236,6 +232,7 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater, CAPBridgedPlugin {
     }
 
     public override func load() {
+        audioPlayerImpl.bridge = bridge
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(applicationWillResignActive),

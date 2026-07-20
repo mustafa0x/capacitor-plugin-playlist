@@ -47,5 +47,8 @@ export const Playlist: PlaylistPlugin = {
     selectTrackById: (options) => raw_playlist.selectTrackById(options),
     setPlaybackVolume: (options) => raw_playlist.setPlaybackVolume(options),
     setLoop: (options) => raw_playlist.setLoop(options),
-    setPlaybackRate: (options) => raw_playlist.setPlaybackRate(options)
+    setPlaybackRate: (options) => raw_playlist.setPlaybackRate(options),
+    prepareForVideoHandoff: () => raw_playlist.prepareForVideoHandoff(),
+    resumeAfterVideoHandoff: (options) => raw_playlist.resumeAfterVideoHandoff(options),
+    getLastKnownPosition: () => raw_playlist.getLastKnownPosition()
 }
