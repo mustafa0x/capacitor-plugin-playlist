@@ -44,20 +44,19 @@ enum RmxAudioPlayerError: Error, LocalizedError {
 final class RmxAudioPlayer: NSObject {
 
     var statusUpdater: StatusUpdater? = nil
-    weak var bridge: CAPBridgeProtocol? = nil
 
     private var playbackTimeObserver: Any?
+    private var kvoObserversRegistered = false
     private var wasPlayingInterrupted = false
     private var commandCenterRegistered = false
-    private var resetStreamOnPause = true
+    private var resetStreamOnPause = false
     private var updatedNowPlayingInfo: [String : Any]?
     private let nowPlayingInfoQueue = DispatchQueue(label: "RMXAudioPlayerNowPlayingQueue")
+    private let coverArtworkCache = NSCache<NSURL, MPMediaItemArtwork>()
     private var isReplacingItems = false
     private var isWaitingToStartPlayback = false
     private var loop = false
     private var isWebViewActive = true
-    private var queueObserversRegistered = false
-    private var observedTrackItems: Set<ObjectIdentifier> = []
 
     let avQueuePlayer = AVBidirectionalQueuePlayer(items: [])
 
@@ -76,14 +75,22 @@ final class RmxAudioPlayer: NSObject {
 
     func setOptions(_ options: [String:Any]) {
         print("RmxAudioPlayer.execute=setOptions, \(options)")
-        resetStreamOnPause = (options["resetStreamOnPause"] as? NSNumber)?.boolValue ?? true
+        resetStreamOnPause = (options["resetStreamOnPause"] as? NSNumber)?.boolValue ?? false
     }
 
     func initialize() {
         print("RmxAudioPlayer.execute=initialize")
 
         avQueuePlayer.actionAtItemEnd = .advance
-        registerQueueObservers()
+        // Guard against duplicate KVO registration (e.g. called more than once without a
+        // matching releaseResources() between calls — would otherwise crash with an
+        // "Cannot remove observer" or duplicate-key exception).
+        if !kvoObserversRegistered {
+            avQueuePlayer.addObserver(self, forKeyPath: "currentItem", options: .new, context: nil)
+            avQueuePlayer.addObserver(self, forKeyPath: "rate", options: .new, context: nil)
+            avQueuePlayer.addObserver(self, forKeyPath: "timeControlStatus", options: .new, context: nil)
+            kvoObserversRegistered = true
+        }
 
         installPlaybackTimeObserverIfNeeded()
 
@@ -113,7 +120,7 @@ final class RmxAudioPlayer: NSObject {
 
         let playFromId = ((options["playFromId"] != nil) ? options["playFromId"] : nil) as? String
 
-        let startPaused = options["startPaused"] != nil ? (options["startPaused"] as? Bool) ?? false : false
+        let startPaused = options["startPaused"] != nil ? (options["startPaused"] as? Bool) ?? false : true
 
         if playFromPosition > 0.0 {
             seekToPosition = playFromPosition
@@ -154,26 +161,23 @@ final class RmxAudioPlayer: NSObject {
 
         var removed = 0
         if items.count > 0 {
-            let snapshot = avQueuePlayer.queuedAudioTracks
-            var indices = Set<Int>()
             for item in items {
-                guard let item = item as? [String: Any] else {
+                guard let item = item as? [String: String] else {
                     continue
                 }
-
-                if let index = (item["index"] as? NSNumber)?.intValue, snapshot.indices.contains(index) {
-                    indices.insert(index)
-                } else if let id = item["id"] as? String,
-                          let index = snapshot.firstIndex(where: { $0.trackId == id }) {
-                    indices.insert(index)
+                if let id = item["trackId"] {
+                    do {
+                        try removeItem(id)
+                        removed += 1
+                    } catch {}
                 }
-            }
+                else if let index = Int(item["trackIndex"]!) {
+                    do {
+                        try removeItem(index)
+                        removed += 1
+                    } catch {}
+                }
 
-            for index in indices.sorted(by: >) {
-                do {
-                    try removeItem(index)
-                    removed += 1
-                } catch {}
             }
         }
 
@@ -231,7 +235,6 @@ final class RmxAudioPlayer: NSObject {
 
     func setLoopAll(_ loop: Bool) {
         self.loop = loop
-        avQueuePlayer.wrapsWhenAtEnd = loop
 
         print("RmxAudioPlayer.execute=setLoopAll, \(loop)")
     }
@@ -245,30 +248,22 @@ final class RmxAudioPlayer: NSObject {
     /// These are basically just passing through to the core functionality of the queue and this player.
     ///
     /// These functions don't really do anything interesting by themselves.
-    func selectTrack(index: Int, positionTime: Float? = nil) throws {
+    func selectTrack(index: Int) throws {
         guard index >= 0 && index < avQueuePlayer.queuedAudioTracks.count else {
             throw RmxAudioPlayerError.indexOutOfPlaylistBounds
         }
         avQueuePlayer.setCurrentIndex(index)
-        if positionTime != nil {
-            seek(to: positionTime!, isCommand: false)
-        }
     }
 
-    func selectTrack(id: String, positionTime: Float? = nil) throws {
+    func selectTrack(id: String) throws {
         guard !avQueuePlayer.queuedAudioTracks.isEmpty else {
             throw RmxAudioPlayerError.queueEmpty
         }
-        guard
-            let result = findTrack(byId: id),
-            let idx = (result["index"] as? NSNumber)?.intValue,
-            idx >= 0
-        else {
-            throw RmxAudioPlayerError.trackIdNotFound
-        }
-        avQueuePlayer.setCurrentIndex(idx)
-        if positionTime != nil {
-            seek(to: positionTime!, isCommand: false)
+        let result = findTrack(byId: id)
+        let idx = (result?["index"] as? NSNumber)?.intValue ?? 0
+
+        if idx >= 0 {
+            avQueuePlayer.setCurrentIndex(idx)
         }
     }
 
@@ -283,18 +278,20 @@ final class RmxAudioPlayer: NSObject {
     }
 
     func removeItem(_ id: String) throws {
-        guard
-            let result = findTrack(byId: id),
-            let idx = (result["index"] as? NSNumber)?.intValue,
-            let track = result["track"] as? AudioTrack,
-            idx >= 0
-        else {
+        let result = findTrack(byId: id)
+        let idx = (result?["index"] as? NSNumber)?.intValue ?? 0
+        let track = result?["track"] as? AudioTrack
+
+        guard idx >= 0 else {
             throw RmxAudioPlayerError.trackNotFoundById(id)
         }
-
+        // AudioTrack* item = [self avQueuePlayer].itemsForPlayer[idx];
         removeTrackObservers(track)
-        avQueuePlayer.remove(track)
-        onStatus(.rmxstatus_ITEM_REMOVED, trackId: track.trackId, param: track.toDict())
+
+        if let track = track {
+            avQueuePlayer.remove(track)
+        }
+        onStatus(.rmxstatus_ITEM_REMOVED, trackId: track?.trackId, param: track?.toDict())
     }
 
     // MARK: - player actions
@@ -428,9 +425,7 @@ final class RmxAudioPlayer: NSObject {
     }
 
     func setTracks(_ tracks: [AudioTrack], startIndex: Int, startPosition: Float) {
-        for item in avQueuePlayer.queuedAudioTracks {
-            removeTrackObservers(item)
-        }
+        avQueuePlayer.removeAllTrackObservers()
         
         isReplacingItems = true
         print("RmxAudioPlayer[setTracks] replacing tracks ")
@@ -707,11 +702,11 @@ final class RmxAudioPlayer: NSObject {
                 updatedNowPlayingInfo![MPMediaItemPropertyTitle] = currentItem?.title
                 updatedNowPlayingInfo![MPMediaItemPropertyAlbumTitle] = currentItem?.album
 
-                updateNowPlayingArtwork(currentItem?.albumArt)
+                updateNowPlayingArtwork(currentItem?.albumArt?.absoluteString)
             }
             updatedNowPlayingInfo![MPMediaItemPropertyPlaybackDuration] = duration ?? 0.0
             updatedNowPlayingInfo![MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime ?? 0.0
-            updatedNowPlayingInfo![MPNowPlayingInfoPropertyPlaybackRate] = avQueuePlayer.rate != 0.0 ? avQueuePlayer.rate : 0.0
+            updatedNowPlayingInfo![MPNowPlayingInfoPropertyPlaybackRate] = 1.0
 
             MPNowPlayingInfoCenter.default().nowPlayingInfo = updatedNowPlayingInfo
         }
@@ -721,118 +716,73 @@ final class RmxAudioPlayer: NSObject {
         commandCenter.previousTrackCommand.isEnabled = !avQueuePlayer.isAtBeginning
     }
 
-    func updateNowPlayingArtwork(_ coverUriOrNil: String?) {
+    private func updateNowPlayingArtwork(_ coverUriOrNil: String?) {
         guard let coverUri = coverUriOrNil else {
             updatedNowPlayingInfo?.removeValue(forKey: MPMediaItemPropertyArtwork)
             return
         }
 
-        guard let artworkURL = resolveArtworkURL(coverUri) else {
-            updatedNowPlayingInfo?.removeValue(forKey: MPMediaItemPropertyArtwork)
-            return
-        }
-
-        if artworkURL.isFileURL {
-            if let mediaItemArtwork = createCoverArtwork(at: artworkURL) {
-                updatedNowPlayingInfo?[MPMediaItemPropertyArtwork] = mediaItemArtwork
-            } else {
+        if coverUri.hasPrefix("http://") || coverUri.hasPrefix("https://") {
+            guard let coverImageUrl = URL(string: coverUri) else {
                 updatedNowPlayingInfo?.removeValue(forKey: MPMediaItemPropertyArtwork)
-            }
-            return
-        }
-
-        downloadImage(url: artworkURL) { [weak self] image in
-            guard
-                let self = self,
-                self.isCoverImageValid(image)
-            else {
                 return
             }
-            let artwork = MPMediaItemArtwork(boundsSize: image!.size) { _ in image! }
-            self.nowPlayingInfoQueue.sync {
-                self.updatedNowPlayingInfo?[MPMediaItemPropertyArtwork] = artwork
-                MPNowPlayingInfoCenter.default().nowPlayingInfo = self.updatedNowPlayingInfo
+
+            if let cachedArtwork = coverArtworkCache.object(forKey: coverImageUrl as NSURL) {
+                updatedNowPlayingInfo?[MPMediaItemPropertyArtwork] = cachedArtwork
+                return
             }
+
+            updatedNowPlayingInfo?.removeValue(forKey: MPMediaItemPropertyArtwork)
+
+            URLSession.shared.dataTask(with: coverImageUrl) { [weak self] data, _, _ in
+                guard
+                    let self = self,
+                    let data = data,
+                    let coverImage = UIImage(data: data),
+                    self.isCoverImageValid(coverImage)
+                else {
+                    return
+                }
+
+                DispatchQueue.main.async {
+                    let artwork = MPMediaItemArtwork(boundsSize: coverImage.size) { _ in coverImage }
+                    self.coverArtworkCache.setObject(artwork, forKey: coverImageUrl as NSURL)
+
+                    guard self.avQueuePlayer.currentAudioTrack?.albumArt?.absoluteString == coverUri else {
+                        return
+                    }
+
+                    self.nowPlayingInfoQueue.sync {
+                        self.updatedNowPlayingInfo?[MPMediaItemPropertyArtwork] = artwork
+                        MPNowPlayingInfoCenter.default().nowPlayingInfo = self.updatedNowPlayingInfo
+                    }
+                }
+            }.resume()
+            return
+        }
+
+        if let mediaItemArtwork = createCoverArtwork(coverUri) {
+            updatedNowPlayingInfo?[MPMediaItemPropertyArtwork] = mediaItemArtwork
+        } else {
+            updatedNowPlayingInfo?.removeValue(forKey: MPMediaItemPropertyArtwork)
         }
     }
 
-    private func createCoverArtwork(at artworkURL: URL) -> MPMediaItemArtwork? {
-        guard FileManager.default.fileExists(atPath: artworkURL.path) else {
-            return nil
-        }
-
-        let coverImage = UIImage(contentsOfFile: artworkURL.path)
-        guard isCoverImageValid(coverImage) else {
-            return nil
-        }
-
-        return MPMediaItemArtwork.init(boundsSize: coverImage!.size, requestHandler: { (size) -> UIImage in
-            return coverImage!
-        })
-    }
-
-    private func resolveArtworkURL(_ coverUri: String) -> URL? {
-        if FileManager.default.fileExists(atPath: coverUri) {
-            return URL(fileURLWithPath: coverUri)
-        }
-
-        if let directURL = URL(string: coverUri), directURL.scheme != nil {
-            if directURL.isFileURL {
-                return directURL
-            }
-            if let localCoverURL = bridge?.localURL(fromWebURL: directURL), localCoverURL.isFileURL {
-                return localCoverURL
-            }
-            if isNetworkArtworkURL(directURL) {
-                return directURL
-            }
-            return nil
-        }
-
-        guard let serverURL = bridge?.config.serverURL,
-              let resolvedURL = URL(string: coverUri, relativeTo: serverURL)?.absoluteURL
+    private func createCoverArtwork(_ coverUri: String) -> MPMediaItemArtwork? {
+        guard
+            FileManager.default.fileExists(atPath: coverUri),
+            let coverImage = UIImage(contentsOfFile: coverUri),
+            isCoverImageValid(coverImage)
         else {
             return nil
         }
 
-        if let localCoverURL = bridge?.localURL(fromWebURL: resolvedURL), localCoverURL.isFileURL {
-            return localCoverURL
-        }
-        if isNetworkArtworkURL(resolvedURL) {
-            return resolvedURL
-        }
-        return nil
+        return MPMediaItemArtwork(boundsSize: coverImage.size) { _ in coverImage }
     }
 
-    private func isNetworkArtworkURL(_ url: URL) -> Bool {
-        guard let scheme = url.scheme?.lowercased() else {
-            return false
-        }
-        return scheme == "http" || scheme == "https"
-    }
-
-    func downloadImage(url: URL, completion: @escaping ((_ image: UIImage?) -> Void)){
-        print("Started downloading \"\(url.deletingPathExtension().lastPathComponent)\".")
-        self.getImageDataFromUrl(url) { (_ data: Data?) in
-            DispatchQueue.main.async {
-                print("Finished downloading \"\(url.deletingPathExtension().lastPathComponent)\".")
-                guard let data = data else {
-                    completion(nil)
-                    return
-                }
-                completion(UIImage(data: data))
-            }
-        }
-    }
-
-    func getImageDataFromUrl(_ url: URL, completion: @escaping ((_ data: Data?) -> Void)) {
-        URLSession.shared.dataTask(with: url) { (data, response, error) in
-            completion(data)
-        }.resume()
-    }
-
-    func isCoverImageValid(_ coverImage: UIImage?) -> Bool {
-        return coverImage != nil && (coverImage?.ciImage != nil || coverImage?.cgImage != nil)
+    private func isCoverImageValid(_ coverImage: UIImage) -> Bool {
+        return coverImage.ciImage != nil || coverImage.cgImage != nil
     }
 
     func handleCurrentItemChanged(_ playerItem: AudioTrack?) {
@@ -1055,15 +1005,6 @@ final class RmxAudioPlayer: NSObject {
         let duration = Float(CMTimeGetSeconds(playerItem.duration))
         let timeRanges = playerItem.loadedTimeRanges
 
-        guard duration > 0 else {
-            return [
-                "start": NSNumber(value: 0.0),
-                "end": NSNumber(value: 0.0),
-                "bufferPercent": NSNumber(value: 0.0),
-                "duration": NSNumber(value: 0.0)
-            ]
-        }
-
         guard !timeRanges.isEmpty else {
             return [
                 "start": NSNumber(value: 0.0),
@@ -1073,18 +1014,10 @@ final class RmxAudioPlayer: NSObject {
             ]
         }
 
-        var start = Float(0.0)
-        var rangeEnd = Float(0.0)
-        for value in timeRanges {
-            let timerange = value.timeRangeValue
-            let segmentStart = Float(CMTimeGetSeconds(timerange.start))
-            let segmentEnd = segmentStart + Float(CMTimeGetSeconds(timerange.duration))
-            if segmentEnd >= rangeEnd {
-                start = segmentStart
-                rangeEnd = segmentEnd
-            }
-        }
-        let bufferPercent = min((rangeEnd / duration) * 100.0, 100.0)
+        let timerange = timeRanges[0].timeRangeValue
+        let start = Float(CMTimeGetSeconds(timerange.start))
+        let rangeEnd = Float(CMTimeGetSeconds(timerange.duration))
+        let bufferPercent = (rangeEnd / duration) * 100.0
 
         return [
             "start": NSNumber(value: start),
@@ -1159,19 +1092,10 @@ final class RmxAudioPlayer: NSObject {
     }
 
     func addTrackObservers(_ playerItem: AudioTrack?) {
-        guard let playerItem = playerItem else {
-            return
-        }
-        let trackId = ObjectIdentifier(playerItem)
-        guard !observedTrackItems.contains(trackId) else {
-            return
-        }
-        observedTrackItems.insert(trackId)
-
         let options: NSKeyValueObservingOptions = [.old, .new]
-        playerItem.addObserver(self, forKeyPath: "status", options: options, context: nil)
-        playerItem.addObserver(self, forKeyPath: "duration", options: options, context: nil)
-        playerItem.addObserver(self, forKeyPath: "loadedTimeRanges", options: options, context: nil)
+        playerItem?.addObserver(self, forKeyPath: "status", options: options, context: nil)
+        playerItem?.addObserver(self, forKeyPath: "duration", options: options, context: nil)
+        playerItem?.addObserver(self, forKeyPath: "loadedTimeRanges", options: options, context: nil)
 
         // We don't need this one because we get the currentItem notification from the queue.
         // But we will wire it up anyway...
@@ -1180,7 +1104,7 @@ final class RmxAudioPlayer: NSObject {
         // Subscribe to the AVPlayerItem's PlaybackStalledNotification notification.
         listener.addObserver(self, selector: #selector(itemStalledPlaying(_:)), name: .AVPlayerItemPlaybackStalled, object: playerItem)
 
-        onStatus(.rmxstatus_ITEM_ADDED, trackId: playerItem.trackId, param: playerItem.toDict())
+        onStatus(.rmxstatus_ITEM_ADDED, trackId: playerItem?.trackId, param: playerItem?.toDict())
     }
 
     @objc func queueCleared(_ notification: Notification?) {
@@ -1190,52 +1114,22 @@ final class RmxAudioPlayer: NSObject {
     }
 
     func removeTrackObservers(_ playerItem: AudioTrack?) {
-        guard let playerItem = playerItem else {
-            return
-        }
-        let trackId = ObjectIdentifier(playerItem)
-        guard observedTrackItems.remove(trackId) != nil else {
-            return
-        }
-
-        playerItem.removeObserver(self, forKeyPath: "status")
-        playerItem.removeObserver(self, forKeyPath: "duration")
-        playerItem.removeObserver(self, forKeyPath: "loadedTimeRanges")
-
-        let listener = NotificationCenter.default
-        listener.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: playerItem)
-        listener.removeObserver(self, name: .AVPlayerItemPlaybackStalled, object: playerItem)
-    }
-
-    func registerQueueObservers() {
-        guard !queueObserversRegistered else {
-            return
-        }
-        avQueuePlayer.addObserver(self, forKeyPath: "currentItem", options: .new, context: nil)
-        avQueuePlayer.addObserver(self, forKeyPath: "rate", options: .new, context: nil)
-        avQueuePlayer.addObserver(self, forKeyPath: "timeControlStatus", options: .new, context: nil)
-        queueObserversRegistered = true
-    }
-
-    func unregisterQueueObservers() {
-        guard queueObserversRegistered else {
-            return
-        }
-        avQueuePlayer.removeObserver(self, forKeyPath: "currentItem")
-        avQueuePlayer.removeObserver(self, forKeyPath: "rate")
-        avQueuePlayer.removeObserver(self, forKeyPath: "timeControlStatus")
-        queueObserversRegistered = false
+        avQueuePlayer.removeTrackObservers(playerItem)
     }
 
     func activateAudioSession() {
         let avSession = AVAudioSession.sharedInstance()
 
-        let options: AVAudioSession.CategoryOptions = [.allowBluetoothA2DP]
+        // If no devices are connected, play audio through the default speaker (rather than the earpiece).
+        var options: AVAudioSession.CategoryOptions = .defaultToSpeaker
+
+        // If both Bluetooth streaming options are enabled, the low quality stream is preferred; enable A2DP only.
+        options.insert(.allowBluetoothA2DP)
 
         do {
             // Always set category first, even if session is already active
             // This ensures we have the correct category after video player exits
-            try avSession.setCategory(.playback, options: options)
+            try avSession.setCategory(.playAndRecord, options: options)
         } catch {
             print("Error setting category! \(error.localizedDescription)")
         }
@@ -1310,7 +1204,16 @@ final class RmxAudioPlayer: NSObject {
             avQueuePlayer.removeTimeObserver(playbackTimeObserver)
         }
         playbackTimeObserver = nil
-        unregisterQueueObservers()
+
+        // Remove the queue-level KVO observers added in initialize() so that a subsequent
+        // initialize() call does not crash with a duplicate-observer exception.
+        if kvoObserversRegistered {
+            avQueuePlayer.removeObserver(self, forKeyPath: "currentItem")
+            avQueuePlayer.removeObserver(self, forKeyPath: "rate")
+            avQueuePlayer.removeObserver(self, forKeyPath: "timeControlStatus")
+            kvoObserversRegistered = false
+        }
+
         deregisterMusicControlsEventListener()
         // commandCenterRegistered is already reset inside deregisterMusicControlsEventListener()
 

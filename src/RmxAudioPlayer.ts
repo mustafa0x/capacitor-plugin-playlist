@@ -3,10 +3,12 @@ import {
     RmxAudioStatusMessageDescriptions
 } from './Constants';
 import {
+    RemoveItemOptions
+} from './definitions';
+import {
     AudioPlayerEventHandler,
     AudioPlayerEventHandlers,
     AudioPlayerOptions,
-    PlaybackSnapshot,
     AudioTrack,
     AudioTrackRemoval,
     OnStatusCallback,
@@ -36,17 +38,6 @@ const itemStatusChangeTypes = [
     RmxAudioStatusMessage.RMXSTATUS_ERROR,
 ];
 
-export const estimatePlaybackPosition = (snapshot: PlaybackSnapshot, now: number = performance.now()) => {
-    const duration = snapshot.duration || 0;
-    if (snapshot.state !== 'playing') {
-        return duration ? Math.min(snapshot.observedPosition, duration) : snapshot.observedPosition;
-    }
-
-    const elapsed = Math.max(0, (now - snapshot.observedAt) / 1000);
-    const nextPosition = snapshot.observedPosition + elapsed * snapshot.rate;
-    return duration ? Math.min(nextPosition, duration) : nextPosition;
-};
-
 export class RmxAudioPlayer {
     handlers: AudioPlayerEventHandlers = {};
     options: AudioPlayerOptions = {verbose: false, resetStreamOnPause: true};
@@ -61,23 +52,6 @@ export class RmxAudioPlayer {
     private _hasError: boolean = false;
     private _hasLoaded: boolean = false;
     private _currentItem: AudioTrack | null = null;
-    private _currentPosition = 0;
-    private _currentDuration = 0;
-    private _currentPositionUpdatedAt = performance.now();
-    private _playbackRate = 1;
-
-    private syncCurrentPosition(position: number, exact: boolean = false) {
-        const now = performance.now();
-        if (!exact && this._currentState === 'playing') {
-            const estimated = this.currentPosition;
-            const max_backward_correction = 0.1 * Math.max(1, this._playbackRate);
-            if (position < estimated && estimated - position <= max_backward_correction) {
-                position = estimated;
-            }
-        }
-        this._currentPosition = position;
-        this._currentPositionUpdatedAt = now;
-    }
 
     /**
      * The current summarized state of the player, as a string. It is preferred that you use the 'isX' accessors,
@@ -90,28 +64,6 @@ export class RmxAudioPlayer {
 
     get currentTrack(): AudioTrack | null {
         return this._currentItem;
-    }
-
-    get playbackSnapshot(): PlaybackSnapshot {
-        return {
-            trackId: this._currentItem?.trackId || null,
-            currentItem: this._currentItem,
-            state: this._currentState,
-            observedPosition: this._currentPosition,
-            observedAt: this._currentPositionUpdatedAt,
-            duration: this._currentDuration,
-            rate: this._playbackRate,
-            hasLoaded: this._hasLoaded,
-            hasError: this._hasError
-        };
-    }
-
-    get currentPosition() {
-        return estimatePlaybackPosition(this.playbackSnapshot);
-    }
-
-    get currentDuration() {
-        return this._currentDuration;
     }
 
     /**
@@ -254,13 +206,17 @@ export class RmxAudioPlayer {
         if (!removeItem) {
             throw new Error('Track removal spec is empty');
         }
-        if (!removeItem.trackId && removeItem.trackIndex === undefined) {
+        if (!removeItem.trackId && !removeItem.trackIndex) {
             throw new Error('Track removal spec is invalid');
         }
-        return Playlist.removeItem({
-            id: removeItem.trackId,
-            index: removeItem.trackIndex
-        });
+        const opts: RemoveItemOptions = {};
+        if (removeItem.trackIndex !== undefined && removeItem.trackIndex !== null) {
+            opts.index = removeItem.trackIndex;
+        }
+        if (removeItem.trackId) {
+            opts.id = removeItem.trackId;
+        }
+        return Playlist.removeItem(opts);
     };
 
     /**
@@ -268,12 +224,11 @@ export class RmxAudioPlayer {
      * include the currently playing item, the next available item will automatically begin playing.
      */
     removeItems = (items: AudioTrackRemoval[]) => {
-        return Playlist.removeItems({
-            items: (items || []).map((item) => ({
-                id: item?.trackId,
-                index: item?.trackIndex
-            }))
-        });
+        const mapped: RemoveItemOptions[] = (items || []).map((item) => ({
+            id: item?.trackId,
+            index: item?.trackIndex
+        }));
+        return Playlist.removeItems({items: mapped});
     };
 
     /**
@@ -299,9 +254,6 @@ export class RmxAudioPlayer {
      */
 
     playTrackByIndex = (index: number, position?: number) => {
-        if (position !== undefined) {
-            this.syncCurrentPosition(position || 0, true);
-        }
         return Playlist.playTrackByIndex({index, position: position || 0});
     };
 
@@ -309,9 +261,6 @@ export class RmxAudioPlayer {
      * Play the track matching the given trackId. If the track does not exist, this has no effect.
      */
     playTrackById = (id: string, position?: number) => {
-        if (position !== undefined) {
-            this.syncCurrentPosition(position || 0, true);
-        }
         return Playlist.playTrackById({id, position: position || 0});
     };
 
@@ -319,9 +268,6 @@ export class RmxAudioPlayer {
      * Play the track matching the given trackId. If the track does not exist, this has no effect.
      */
     selectTrackByIndex = (index: number, position?: number) => {
-        if (position !== undefined) {
-            this.syncCurrentPosition(position || 0, true);
-        }
         return Playlist.selectTrackByIndex({index, position: position || 0});
     };
 
@@ -329,9 +275,6 @@ export class RmxAudioPlayer {
      * Play the track matching the given trackId. If the track does not exist, this has no effect.
      */
     selectTrackById = (id: string, position?: number) => {
-        if (position !== undefined) {
-            this.syncCurrentPosition(position || 0, true);
-        }
         return Playlist.selectTrackById({id, position: position || 0});
     };
 
@@ -362,7 +305,6 @@ export class RmxAudioPlayer {
      * the track will complete and playback of the next track will begin.
      */
     seekTo = (position: number) => {
-        this.syncCurrentPosition(position, true);
         return Playlist.seekTo({position});
     };
 
@@ -370,8 +312,6 @@ export class RmxAudioPlayer {
      * Set the playback speed; a float value between [-1, 1] inclusive. If set to 0, this pauses playback.
      */
     setPlaybackRate = (rate: number) => {
-        this._playbackRate = rate || 1;
-        this.syncCurrentPosition(this.currentPosition, true);
         return Playlist.setPlaybackRate({rate});
     };
 
@@ -410,9 +350,6 @@ export class RmxAudioPlayer {
             this._hasError = false;
             this._hasLoaded = false;
             this._currentState = 'loading';
-            this._currentPosition = 0;
-            this._currentDuration = 0;
-            this._currentPositionUpdatedAt = performance.now();
             this._currentItem = (status.value as OnStatusTrackChangedData)?.currentItem;
         }
 
@@ -420,28 +357,9 @@ export class RmxAudioPlayer {
         if (itemStatusChangeTypes.indexOf(status.msgType) >= 0) {
             // Only change the plugin's *current status* if the event being raised is for the current active track.
             if (this._currentItem && this._currentItem.trackId === trackId) {
-                if (status.msgType === RmxAudioStatusMessage.RMXSTATUS_PLAYBACK_POSITION && status.value && (<any> status.value).currentPosition !== undefined) {
-                    this.syncCurrentPosition((<any> status.value).currentPosition);
-                }
-
-                if (status.msgType === RmxAudioStatusMessage.RMXSTATUS_DURATION && status.value && (<any> status.value).duration !== undefined) {
-                    this._currentDuration = (<any> status.value).duration;
-                }
 
                 if (status.value && (<any> status.value).status) {
                     this._currentState = (<any> status.value).status;
-                }
-
-                if (
-                    status.msgType === RmxAudioStatusMessage.RMXSTATUS_PLAYING ||
-                    status.msgType === RmxAudioStatusMessage.RMXSTATUS_PAUSE ||
-                    status.msgType === RmxAudioStatusMessage.RMXSTATUS_SEEK ||
-                    status.msgType === RmxAudioStatusMessage.RMXSTATUS_COMPLETED
-                ) {
-                    const currentPosition = (<any> status.value)?.currentPosition ?? (<any> status.value)?.position;
-                    if (currentPosition !== undefined) {
-                        this.syncCurrentPosition(currentPosition, status.msgType !== RmxAudioStatusMessage.RMXSTATUS_PLAYING);
-                    }
                 }
 
                 if (status.msgType === RmxAudioStatusMessage.RMXSTATUS_CANPLAY) {

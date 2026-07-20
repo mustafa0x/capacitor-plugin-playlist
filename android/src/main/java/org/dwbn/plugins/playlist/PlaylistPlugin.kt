@@ -3,7 +3,6 @@ package org.dwbn.plugins.playlist
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import com.devbrackets.android.playlistcore.manager.BasePlaylistManager
 import com.devbrackets.android.playlistcore.data.MediaProgress
 import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
@@ -23,7 +22,7 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
     private var isWebViewActive = true
 
     override fun load() {
-        audioPlayerImpl = RmxAudioPlayer(this, this.context.applicationContext)
+        audioPlayerImpl = RmxAudioPlayer(this, (this.context.applicationContext as App))
     }
 
     @PluginMethod
@@ -160,8 +159,8 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
             val removals = ArrayList<TrackRemovalItem>()
             for (index in 0 until items.length()) {
                 val entry = items.optJSONObject(index) ?: continue
-                val trackIndex = entry.optInt("index", -1)
-                val trackId = entry.optString("id", "")
+                val trackIndex = entry.optInt("trackIndex", -1)
+                val trackId = entry.optString("trackId", "")
                 removals.add(TrackRemovalItem(trackIndex, trackId))
             }
 
@@ -216,7 +215,6 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
     @PluginMethod
     fun play(call: PluginCall) {
         Handler(Looper.getMainLooper()).post {
-            audioPlayerImpl!!.clearTrackSelectionSuppression()
             val handler = audioPlayerImpl!!.playlistManager.playlistHandler
             val serviceForeground = MediaService.instance?.isRunningInForeground() == true
             if (handler == null || handler.currentMediaPlayer == null) {
@@ -246,7 +244,6 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
             val seekPosition = (call.getFloat("position", 0f)!! * 1000.0f).toLong()
 
             audioPlayerImpl!!.playlistManager.currentPosition = index
-            audioPlayerImpl!!.clearTrackSelectionSuppression()
             audioPlayerImpl!!.playlistManager.beginPlayback(seekPosition, false)
 
             call.resolve()
@@ -260,16 +257,13 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
         Handler(Looper.getMainLooper()).post {
             val id: String = call.getString("id")!!
             if ("" != id) {
+                val code = id.hashCode()
                 val seekPosition = (call.getFloat("position", 0f)!! * 1000.0f).toLong()
-                val itemPosition = audioPlayerImpl!!.playlistManager.findItemPosition(id)
-                if (itemPosition != BasePlaylistManager.INVALID_POSITION) {
-                    audioPlayerImpl!!.playlistManager.currentPosition = itemPosition
-                    audioPlayerImpl!!.clearTrackSelectionSuppression()
-                    val handler = audioPlayerImpl!!.playlistManager.playlistHandler
-                    val alreadyPlaying = handler?.currentMediaPlayer?.isPlaying == true
-                    if (!audioPlayerImpl!!.tryResumeVideoHandoffInPlace(seekPosition) && !alreadyPlaying) {
-                        audioPlayerImpl!!.playlistManager.beginPlayback(seekPosition, false)
-                    }
+                audioPlayerImpl!!.playlistManager.setCurrentItem(code.toLong())
+                val handler = audioPlayerImpl!!.playlistManager.playlistHandler
+                val alreadyPlaying = handler?.currentMediaPlayer?.isPlaying == true
+                if (!audioPlayerImpl!!.tryResumeVideoHandoffInPlace(seekPosition) && !alreadyPlaying) {
+                    audioPlayerImpl!!.playlistManager.beginPlayback(seekPosition, false)
                 }
             }
 
@@ -286,7 +280,6 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
                 call.getInt("index", audioPlayerImpl!!.playlistManager.currentPosition)!!
 
             audioPlayerImpl!!.playlistManager.currentPosition = index
-            audioPlayerImpl!!.prepareForTrackSelection(audioPlayerImpl!!.playlistManager.currentItem?.trackId)
 
             val seekPosition = (call.getFloat("position", 0f)!! * 1000.0f).toLong()
 
@@ -304,13 +297,13 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
         Handler(Looper.getMainLooper()).post {
             val id: String = call.getString("id")!!
             if ("" != id) {
+                // alternatively we could search for the item and set the current index to that item.
+                val code = id.hashCode()
+                audioPlayerImpl!!.playlistManager.setCurrentItem(code.toLong())
+
                 val seekPosition = (call.getFloat("position", 0f)!! * 1000.0f).toLong()
-                val itemPosition = audioPlayerImpl!!.playlistManager.findItemPosition(id)
-                if (itemPosition != BasePlaylistManager.INVALID_POSITION) {
-                    audioPlayerImpl!!.playlistManager.currentPosition = itemPosition
-                    audioPlayerImpl!!.prepareForTrackSelection(id)
-                    audioPlayerImpl!!.playlistManager.beginPlayback(seekPosition, true)
-                }
+
+                audioPlayerImpl!!.playlistManager.beginPlayback(seekPosition, true)
             }
             call.resolve()
 
@@ -321,7 +314,6 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
     @PluginMethod
     fun pause(call: PluginCall) {
         Handler(Looper.getMainLooper()).post {
-            audioPlayerImpl!!.clearTrackSelectionSuppression()
             if (audioPlayerImpl!!.playlistManager.isPlaying) {
                 audioPlayerImpl!!.playlistManager.playlistHandler?.pause(false)
             }
@@ -366,7 +358,12 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
             val seekPosition =
                 (call.getFloat("position", position / 1000.0f)!! * 1000.0f).toLong()
 
+            val isPlaying: Boolean? =
+                audioPlayerImpl!!.playlistManager.playlistHandler?.currentMediaPlayer?.isPlaying
             audioPlayerImpl!!.playlistManager.playlistHandler?.seek(seekPosition)
+            if (isPlaying === null || !isPlaying) {
+                audioPlayerImpl!!.playlistManager.playlistHandler?.pause(false)
+            }
 
             call.resolve()
 

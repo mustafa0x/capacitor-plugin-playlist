@@ -66,12 +66,10 @@ class MediaImageProvider(
     private inner class RemoteViewImageTarget : CustomTarget<Bitmap>() {
         override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
             artworkImage = resource
-            onImageUpdatedListener.onImageUpdated()
         }
 
         override fun onLoadCleared(placeholder: android.graphics.drawable.Drawable?) {
-            artworkImage = null
-            onImageUpdatedListener.onImageUpdated()
+            // No cleanup needed
         }
     }
 

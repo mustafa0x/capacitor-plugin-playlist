@@ -40,7 +40,7 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater, CAPBridgedPlugin {
         CAPPluginMethod(name: "getLastKnownPosition", returnType: CAPPluginReturnPromise),
     ]
     let audioPlayerImpl = RmxAudioPlayer()
-
+    
     // MARK: - Capacitor API
     @objc func initialize(_ call: CAPPluginCall) {
         // Ensure we don't drop the initial REGISTER status event.
@@ -50,7 +50,7 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater, CAPBridgedPlugin {
     }
     @objc func setOptions(_ call: CAPPluginCall) {
         // setOptions is invoked with the full payload as the options object.
-        audioPlayerImpl.setOptions(call.jsObjectRepresentation)
+        audioPlayerImpl.setOptions(call.options as! [String : Any])
         call.resolve()
     }
     @objc func release(_ call: CAPPluginCall) {
@@ -58,8 +58,8 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater, CAPBridgedPlugin {
         call.resolve();
     }
     @objc func setPlaylistItems(_ call: CAPPluginCall) {
-        let items = call.getArray("items", [String:Any].self) ?? []
-        let options = call.getObject("options") ?? [:]
+        let items = call.getArray("items", [String:Any].self)!
+        let options = call.getObject("options")!
         
         let tracks = createTracks(items)
         audioPlayerImpl.setPlaylistItems(tracks, options: options)
@@ -69,16 +69,13 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater, CAPBridgedPlugin {
     @objc func addItem(_ call: CAPPluginCall) {
         let trackInfo = call.getObject("item")
         
-        guard let track = AudioTrack.initWithDictionary(trackInfo) else {
-            call.reject("Invalid track item")
-            return
-        }
-        audioPlayerImpl.addItem(track)
+        let track = AudioTrack.initWithDictionary(trackInfo)
+        audioPlayerImpl.addItem(track!)
         
         call.resolve();
     }
     @objc func addAllItems(_ call: CAPPluginCall) {
-        let items = call.getArray("items", [String:Any].self) ?? []
+        let items = call.getArray("items", [String:Any].self)!
         
         let tracks = createTracks(items)
         audioPlayerImpl.addAllItems(tracks)
@@ -175,7 +172,7 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater, CAPBridgedPlugin {
         }
         
         do {
-            try audioPlayerImpl.selectTrack(index: index, positionTime: call.getFloat("position"))
+            try audioPlayerImpl.selectTrack(index: index)
             call.resolve();
         } catch {
             call.reject(error.localizedDescription)
@@ -188,7 +185,7 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater, CAPBridgedPlugin {
         }
         
         do {
-            try audioPlayerImpl.selectTrack(id: id, positionTime: call.getFloat("position"))
+            try audioPlayerImpl.selectTrack(id: id)
             call.resolve();
         } catch {
             call.reject(error.localizedDescription)
@@ -232,7 +229,6 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater, CAPBridgedPlugin {
     }
 
     public override func load() {
-        audioPlayerImpl.bridge = bridge
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(applicationWillResignActive),

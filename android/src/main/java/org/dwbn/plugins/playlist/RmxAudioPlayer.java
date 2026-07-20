@@ -1,6 +1,5 @@
 package org.dwbn.plugins.playlist;
 
-import android.content.Context;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -47,11 +46,9 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
     private long lastDuration = 0;
     private boolean trackLoaded = false;
     private boolean resetStreamOnPause = true;
-    private String pendingSelectionTrackId = null;
-    private boolean suppressSelectionPlaybackEvents = false;
-    private final Context context;
+    private final App app;
 
-    public RmxAudioPlayer(@NonNull OnStatusReportListener statusListener, @NonNull Context context) {
+    public RmxAudioPlayer(@NonNull OnStatusReportListener statusListener, App context) {
         // AudioPlayerPlugin and RmxAudioPlayer are separate classes in order to increase
         // the portability of this code.
         // Because AudioPlayerPlugin itself holds a strong reference to this class,
@@ -59,9 +56,10 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
         // but these two objects will always live together (And the plugin couldn't function
         // at all if this one gets garbage collected).
         this.statusListener = statusListener;
-        this.context = context.getApplicationContext();
+        this.app = context;
 
-        playlistManager = PlaylistRuntime.resetPlaylistManager(this.context);
+        app.resetPlaylistManager();
+        getPlaylistManager();
         playlistManager.setId(PLAYLIST_ID);
         playlistManager.setPlaybackStatusListener(this);
         playlistManager.setOnErrorListener(this);
@@ -69,7 +67,7 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
     }
 
     public PlaylistManager getPlaylistManager() {
-        playlistManager = PlaylistRuntime.getPlaylistManager(context);
+        playlistManager = app.getPlaylistManager();
         return playlistManager;
     }
 
@@ -83,25 +81,8 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
     }
 
     public void setOptions(JSONObject val) {
-        Options options = new Options(context, val);
+        Options options = new Options(app, val);
         getPlaylistManager().setOptions(options);
-    }
-
-    public void prepareForTrackSelection(@Nullable String trackId) {
-        pendingSelectionTrackId = trackId;
-        suppressSelectionPlaybackEvents = trackId != null;
-    }
-
-    public void clearTrackSelectionSuppression() {
-        pendingSelectionTrackId = null;
-        suppressSelectionPlaybackEvents = false;
-    }
-
-    private boolean isSuppressingSelection(@Nullable AudioTrack item) {
-        return suppressSelectionPlaybackEvents
-                && pendingSelectionTrackId != null
-                && item != null
-                && pendingSelectionTrackId.equals(item.getTrackId());
     }
 
     public float getVolume() {
@@ -207,9 +188,6 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
     @Override
     public void onItemPlaybackEnded(AudioTrack item) {
         if (item != null) {
-            if (suppressSelectionPlaybackEvents || isSuppressingSelection(item)) {
-                return;
-            }
             String trackId = item.getTrackId();
             JSONObject trackStatus = getPlayerStatus(item);
             onStatus(RmxAudioStatusMessage.RMXSTATUS_STOPPED, trackId, trackStatus);
@@ -254,14 +232,10 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
 
         AudioTrack currentItem = playlistManager.getCurrentItem();
         JSONObject trackStatus = getPlayerStatus(currentItem);
-        boolean suppressSelection = isSuppressingSelection(currentItem);
         Log.i("onPlaybackStateChanged", playbackState.toString() + ", " + trackStatus.toString() + ", " + currentItem);
 
         switch (playbackState) {
             case STOPPED:
-                if (suppressSelection || suppressSelectionPlaybackEvents) {
-                    break;
-                }
                 onStatus(RmxAudioStatusMessage.RMXSTATUS_STOPPED, "INVALID", null);
                 break;
 
@@ -286,9 +260,6 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
                 break;
             }
             case PLAYING:
-                if (suppressSelection) {
-                    break;
-                }
                 if (currentItem != null && currentItem.getTrackId() != null) {
                     // Can also check here that duration == 0, because that is what happens on the first PLAYING invokation.
                     // We'll leave this for now.
@@ -300,19 +271,12 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
                 }
                 break;
             case PAUSED:
-                if (suppressSelection) {
-                    clearTrackSelectionSuppression();
-                    break;
-                }
                 if (currentItem != null && currentItem.getTrackId() != null) {
                     onStatus(RmxAudioStatusMessage.RMXSTATUS_PAUSE, currentItem.getTrackId(), trackStatus);
                 }
                 break;
             // we'll handle error in the listener. ExoMedia only raises this in the case of catastrophic player failure.
             case ERROR:
-                if (suppressSelection) {
-                    clearTrackSelectionSuppression();
-                }
             default:
                 break;
         }
@@ -333,7 +297,6 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
             currentItem.setBufferPercentFloat(progress.getBufferPercentFloat());
 
             JSONObject trackStatus = getPlayerStatus(currentItem);
-            boolean suppressSelection = isSuppressingSelection(currentItem);
 
             if (progress.getBufferPercent() != lastBufferPercent) {
                 if (progress.getBufferPercent() >= 100f) {
@@ -357,8 +320,9 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
                 lastDuration = progress.getDuration();
             }
 
-            if (!suppressSelection
-                    && (playbackState == PlaybackState.PLAYING || playbackState == PlaybackState.SEEKING)) {
+            // dont send on prepare, if null
+            if (playbackState == PlaybackState.PLAYING || playbackState == PlaybackState.SEEKING
+                    || (playbackState == PlaybackState.PREPARING && progress.getDuration() == 0)) {
                 onStatus(RmxAudioStatusMessage.RMXSTATUS_PLAYBACK_POSITION, currentItem.getTrackId(), trackStatus);
             }
         }
@@ -409,7 +373,7 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
 
         // The media players hold onto their current playback position between songs,
         // despite my efforts to reset it. So we will just filter out this state.
-        if (progress != null && playbackState != PlaybackState.RETRIEVING && playbackState != PlaybackState.PREPARING) {
+        if (progress != null) { // && !status.equals("loading")) {
             position = progress.getPosition();
         }
 

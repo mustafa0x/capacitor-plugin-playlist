@@ -2,8 +2,6 @@
 
 Capacitor plugin for **Android**, **iOS**, and **Web** with native audio playlist playback, background support, lock-screen / notification controls, and video handoff.
 
-Published fork: `@mustafaj/capacitor-plugin-playlist`
-
 Requires **Capacitor 8+** (peer dependency `@capacitor/core >= 8.0.0`).
 
 ## Index
@@ -106,8 +104,8 @@ Uses a customized AVQueuePlayer (`AVBidirectionalQueuePlayer`) for track-change 
 ## Installation
 
 ```
-pnpm add @mustafaj/capacitor-plugin-playlist
-pnpm exec cap sync
+npm i capacitor-plugin-playlist
+npx cap sync
 ```
 
 ### Web
@@ -117,7 +115,7 @@ Include HLS.js in your build for HLS streams.
 #### Angular example
 
 ```
-pnpm add hls.js
+npm i hls.js
 ```
 
 Add to `angular.json` → architect → build → options → scripts:
@@ -132,16 +130,18 @@ Add to `angular.json` → architect → build → options → scripts:
 
 ### Android
 
-#### Android manifest
+#### AndroidManifest.xml
 
-The plugin ships its own merged Android manifest entries for:
-
-- `WAKE_LOCK`
-- `FOREGROUND_SERVICE`
-- `FOREGROUND_SERVICE_MEDIA_PLAYBACK`
-- `org.dwbn.plugins.playlist.service.MediaService`
-
-You do not need to replace your app's `Application` class to use the plugin.
+```xml
+<uses-permission android:name="android.permission.WAKE_LOCK" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+<application android:name="org.dwbn.plugins.playlist.App">
+    <service android:enabled="true" android:exported="false"
+             android:foregroundServiceType="mediaPlayback"
+             android:name="org.dwbn.plugins.playlist.service.MediaService">
+    </service>
+</application>
+```
 
 #### Gradle 9+
 
@@ -205,6 +205,7 @@ Add to `Info.plist`:
 <key>UIBackgroundModes</key>
 <array>
     <string>audio</string>
+    <string>fetch</string>
 </array>
 ```
 
@@ -214,15 +215,10 @@ Without `audio` background mode, iOS stops playback when the app backgrounds.
 
 See also `examples/audio-provider.ts` for an Angular/Ionic integration.
 
-### Breaking changes
-
-- Low-level `Playlist.removeItem()` and `Playlist.removeItems()` calls now accept only `id` / `index`.
-- `trackId` / `trackIndex` remain supported on the higher-level `RmxAudioPlayer` wrapper, which maps them to the canonical plugin contract.
-
 ### Basic flow (`Playlist` API)
 
 ```typescript
-import { Playlist, AudioTrack, RmxAudioStatusMessage } from '@mustafaj/capacitor-plugin-playlist';
+import { Playlist, AudioTrack, RmxAudioStatusMessage } from 'capacitor-plugin-playlist';
 
 await Playlist.setOptions({
   verbose: true,
@@ -260,7 +256,7 @@ await Playlist.play();
 ### `RmxAudioPlayer` wrapper (Cordova migration)
 
 ```typescript
-import { RmxAudioPlayer, AudioTrack } from '@mustafaj/capacitor-plugin-playlist';
+import { RmxAudioPlayer, AudioTrack } from 'capacitor-plugin-playlist';
 
 const player = new RmxAudioPlayer();
 await player.initialize();
@@ -352,7 +348,7 @@ sequenceDiagram
 ### Basic sequence
 
 ```typescript
-import { Playlist } from '@mustafaj/capacitor-plugin-playlist';
+import { Playlist } from 'capacitor-plugin-playlist';
 
 // --- Entering native video ---
 await Playlist.prepareForVideoHandoff();
@@ -1218,7 +1214,7 @@ Use the shipped `RmxAudioPlayer` class — in the best case you only change your
 import { RmxAudioPlayer } from 'cordova-plugin-playlist';
 
 // after
-import { RmxAudioPlayer } from '@mustafaj/capacitor-plugin-playlist';
+import { RmxAudioPlayer } from 'capacitor-plugin-playlist';
 ```
 
 For new code or video handoff, prefer the `Playlist` plugin object directly.
