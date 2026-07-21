@@ -296,10 +296,9 @@ class PlaylistManager(application: Application) :
             return
         }
         try {
-            setVolume(volumeLeft, volumeRight)
             setPlaybackSpeed(playbackSpeed)
         } catch (e: Exception) {
-            Log.w(TAG, "beginPlayback: Error setting volume or playback speed: " + e.message)
+            Log.w(TAG, "beginPlayback: Error setting playback speed: " + e.message)
         }
     }
 
@@ -311,5 +310,4 @@ class PlaylistManager(application: Application) :
         setParameters(audioTracks, 0)
         options = Options(application.baseContext)
     }
-
 }
