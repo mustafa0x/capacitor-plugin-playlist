@@ -276,13 +276,9 @@ class PlaylistManager(application: Application) :
     fun setPlaybackSpeed(@FloatRange(from = 0.0625, to = 16.0) speed: Float) {
         val validSpeed = speed.coerceIn(0.0625f, 16.0f)
         playbackSpeed = validSpeed
-        playlistHandler?.let { handler ->
-            handler.currentMediaPlayer?.let { mediaPlayer ->
-                if (mediaPlayer is AudioApi) {
-                    Log.i(TAG, "setPlaybackSpeed completing with speed = $validSpeed")
-                    mediaPlayer.setPlaybackSpeed(playbackSpeed)
-                }
-            }
+        (playlistHandler?.currentMediaPlayer as? AudioApi)?.let { mediaPlayer ->
+            Log.i(TAG, "setPlaybackSpeed completing with speed = $validSpeed")
+            mediaPlayer.setPlaybackSpeed(validSpeed)
         }
     }
 
@@ -293,13 +289,6 @@ class PlaylistManager(application: Application) :
         } catch (e: IllegalStateException) {
             // Android 12+: BackgroundServiceStartNotAllowedException when app is backgrounded
             Log.w(TAG, "beginPlayback: cannot start MediaService while backgrounded: ${e.message}")
-            return
-        }
-        try {
-            setVolume(volumeLeft, volumeRight)
-            setPlaybackSpeed(playbackSpeed)
-        } catch (e: Exception) {
-            Log.w(TAG, "beginPlayback: Error setting volume or playback speed: " + e.message)
         }
     }
 
@@ -311,5 +300,4 @@ class PlaylistManager(application: Application) :
         setParameters(audioTracks, 0)
         options = Options(application.baseContext)
     }
-
 }
