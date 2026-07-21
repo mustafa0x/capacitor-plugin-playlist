@@ -94,7 +94,7 @@ class AudioApi(context: Context) : BaseMediaApi() {
         }
     }
 
-    fun setPlaybackSpeed(@FloatRange(from = 0.0, to = 1.0) speed: Float) {
+    fun setPlaybackSpeed(@FloatRange(from = 0.0625, to = 16.0) speed: Float) {
         audioPlayer.setPlaybackSpeed(speed)
     }
 
