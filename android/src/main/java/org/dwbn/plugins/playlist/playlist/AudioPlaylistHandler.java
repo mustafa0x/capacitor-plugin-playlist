@@ -79,6 +79,7 @@ public class AudioPlaylistHandler<I extends PlaylistItem, M extends BasePlaylist
             setupForeground();
             return;
         }
+        setStartPaused(false);
         getAudioFocusProvider().requestFocus();
         com.devbrackets.android.playlistcore.api.MediaPlayerApi<I> mediaPlayer = getCurrentMediaPlayer();
         if (mediaPlayer != null) {
@@ -102,7 +103,6 @@ public class AudioPlaylistHandler<I extends PlaylistItem, M extends BasePlaylist
      */
     public void resumePlaybackAfterVideoHandoff(long positionMs) {
         ((PlaylistManager) getPlaylistManager()).setVideoHandoffForegroundRetain(false);
-        setStartPaused(false);
         getAudioFocusProvider().requestFocus();
         play();
         if (positionMs > 0) {
@@ -127,6 +127,11 @@ public class AudioPlaylistHandler<I extends PlaylistItem, M extends BasePlaylist
 
     @Override
     public void pause(boolean isTemporary) {
+        if (!isTemporary) {
+            setStartPaused(true);
+            setPausedForSeek(false);
+            setPlayingBeforeSeek(false);
+        }
         if (((PlaylistManager) getPlaylistManager()).getVideoHandoffForegroundRetain()) {
             if (isPlaying()) {
                 com.devbrackets.android.playlistcore.api.MediaPlayerApi<I> mediaPlayer = getCurrentMediaPlayer();
