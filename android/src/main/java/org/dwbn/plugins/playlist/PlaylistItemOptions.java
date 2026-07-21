@@ -22,7 +22,7 @@ public class PlaylistItemOptions {
     this.playFromId = this.options.optString("playFromId", null);
 
     try {
-      playFromPosition = (long)(this.options.getDouble("playFromPosition") * 1000L);
+      playFromPosition = Math.round(this.options.getDouble("playFromPosition") * 1000.0);
     } catch (JSONException ex) {
       playFromPosition = -1L;
     }
