@@ -79,6 +79,9 @@ public class AudioPlaylistHandler<I extends PlaylistItem, M extends BasePlaylist
             setupForeground();
             return;
         }
+        if (getCurrentPlaybackState() == PlaybackState.SEEKING) {
+            setPlayingBeforeSeek(true);
+        }
         setStartPaused(false);
         getAudioFocusProvider().requestFocus();
         com.devbrackets.android.playlistcore.api.MediaPlayerApi<I> mediaPlayer = getCurrentMediaPlayer();
