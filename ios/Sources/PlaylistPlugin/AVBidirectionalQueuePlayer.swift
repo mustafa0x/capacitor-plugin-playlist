@@ -68,60 +68,36 @@ class AVBidirectionalQueuePlayer: AVQueuePlayer {
     // NEW METHODS
 
     func playPreviousItem() {
-        // This function is the meat of this library: it allows for going backwards in an AVQueuePlayer,
-        // basically by clearing the player and repopulating it from the index of the last item played.
-        // It should be noted that if the player is on its first item, this function will do nothing. It will
-        // not restart the item or anything like that; if you want that functionality you can implement it
-        // yourself fairly easily using the isAtBeginning method to test if the player is at its start.
+        let playlist = queuedAudioTracks
         guard
             let currentAudioTrack = currentAudioTrack,
-            let tempNowPlayingIndex = queuedAudioTracks.firstIndex(of: currentAudioTrack)
+            let currentIndex = playlist.firstIndex(of: currentAudioTrack),
+            currentIndex > 0,
+            let previousIndex = (0..<currentIndex).last(where: {
+                playlist[$0].error == nil
+            })
         else {
             return
         }
 
-        if tempNowPlayingIndex == 0 {
-            let currentrate = rate
-            if currentrate != 0.0 {
-                pause()
-            }
-            seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero)
-            // [self play];
-            rate = currentrate
-        } else if tempNowPlayingIndex > 0 {
-            let currentrate = rate
-            if currentrate != 0.0 {
-                pause()
-            }
-
-            // Note: it is necessary to have seekToTime called twice in this method, once before and once after re-making the array. If it is not present before, the player will resume from the same spot in the next item when the previous item finishes playing; if it is not present after, the previous item will be played from the same spot that the current item was on.
-            seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero)
-
-            // The next two lines are necessary since RemoveAllItems resets both the nowPlayingIndex and _itemsForPlayer
-            let tempPlaylist = queuedAudioTracks
-            super.removeAllItems()
-
-            var offset = 1
-            while true {
-                let _it = tempPlaylist[tempNowPlayingIndex - offset]
-                if _it.error != nil {
-                    offset += 1
-                }
-                break
-            }
-
-            for i in (tempNowPlayingIndex - offset)..<(tempPlaylist.count) {
-                let item = tempPlaylist[i]
-                item.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero, completionHandler: nil)
-                super.insert(item, after: nil)
-            }
-
-            // Not a typo; see above comment
-            seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero)
-
-            // [self play];
-            rate = currentrate
+        let currentRate = rate
+        if currentRate != 0.0 {
+            pause()
         }
+
+        // Seeking before and after rebuilding prevents the previous and current items
+        // from inheriting each other's playback positions.
+        seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero)
+
+        super.removeAllItems()
+
+        for item in playlist[previousIndex...] {
+            item.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero, completionHandler: nil)
+            super.insert(item, after: nil)
+        }
+
+        seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero)
+        rate = currentRate
     }
     open override func advanceToNextItem() {
         if currentIndex() == nil || currentIndex()! < queuedAudioTracks.count - 1{
