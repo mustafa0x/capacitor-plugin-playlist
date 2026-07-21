@@ -58,26 +58,39 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater, CAPBridgedPlugin {
         call.resolve();
     }
     @objc func setPlaylistItems(_ call: CAPPluginCall) {
-        let items = call.getArray("items", [String:Any].self)!
-        let options = call.getObject("options")!
-        
-        let tracks = createTracks(items)
+        guard
+            let items = call.getArray("items", [String: Any].self),
+            let options = call.getObject("options"),
+            let tracks = createTracks(items)
+        else {
+            call.reject("Invalid playlist payload")
+            return
+        }
+
         audioPlayerImpl.setPlaylistItems(tracks, options: options)
-        
         call.resolve();
     }
     @objc func addItem(_ call: CAPPluginCall) {
-        let trackInfo = call.getObject("item")
-        
-        let track = AudioTrack.initWithDictionary(trackInfo)
-        audioPlayerImpl.addItem(track!)
-        
+        guard
+            let trackInfo = call.getObject("item"),
+            let track = AudioTrack.initWithDictionary(trackInfo)
+        else {
+            call.reject("Invalid track item")
+            return
+        }
+
+        audioPlayerImpl.addItem(track)
         call.resolve();
     }
     @objc func addAllItems(_ call: CAPPluginCall) {
-        let items = call.getArray("items", [String:Any].self)!
-        
-        let tracks = createTracks(items)
+        guard
+            let items = call.getArray("items", [String: Any].self),
+            let tracks = createTracks(items)
+        else {
+            call.reject("Invalid track items")
+            return
+        }
+
         audioPlayerImpl.addAllItems(tracks)
         call.resolve();
     }
@@ -258,20 +271,9 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater, CAPBridgedPlugin {
     }
         
     // MARK: - Utility
-    func createTracks(_ items: [[String: Any]]?) -> [AudioTrack] {
-        if items == nil || items?.count == 0 {
-            return []
-        }
-
-        var newList: [AudioTrack] = []
-        for item in items ?? [] {
-            let track = AudioTrack.initWithDictionary(item)
-            if let track = track {
-                newList.append(track)
-            }
-        }
-
-        return newList;
+    func createTracks(_ items: [[String: Any]]) -> [AudioTrack]? {
+        let tracks = items.compactMap { AudioTrack.initWithDictionary($0) }
+        return tracks.count == items.count ? tracks : nil
     }
 
 }
