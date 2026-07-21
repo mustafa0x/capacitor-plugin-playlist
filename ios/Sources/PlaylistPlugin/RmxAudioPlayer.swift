@@ -129,10 +129,9 @@ final class RmxAudioPlayer: NSObject {
         }
 
         // Index needs to come from new tracks, so we find it in 'items'
-        let result = findTrackIndex(byId: playFromId, items)
-        let idx = (result?["index"] as? NSNumber)?.intValue ?? 0
+        let index = findTrack(byId: playFromId, in: items)?.index ?? 0
 
-        setTracks(items, startIndex: idx, startPosition: seekToPosition)
+        setTracks(items, startIndex: index, startPosition: seekToPosition)
         
         // This will wait for the AVPlayerItemStatusReadyToPlay status change, and then trigger playback.
         isWaitingToStartPlayback = !startPaused
@@ -209,12 +208,10 @@ final class RmxAudioPlayer: NSObject {
         }
         
         if avQueuePlayer.currentAudioTrack?.trackId != trackId {
-            let result = findTrack(byId: trackId)
-            let idx = result?["index"] as? Int ?? -1
-            guard idx >= 0 else {
+            guard let match = findTrack(byId: trackId, in: avQueuePlayer.queuedAudioTracks) else {
                 throw RmxAudioPlayerError.trackIdNotFound
             }
-            avQueuePlayer.setCurrentIndex(idx)
+            avQueuePlayer.setCurrentIndex(match.index)
         }
         playCommand(false)
 
@@ -258,12 +255,10 @@ final class RmxAudioPlayer: NSObject {
         guard !avQueuePlayer.queuedAudioTracks.isEmpty else {
             throw RmxAudioPlayerError.queueEmpty
         }
-        let result = findTrack(byId: id)
-        let idx = (result?["index"] as? NSNumber)?.intValue ?? 0
-
-        if idx >= 0 {
-            avQueuePlayer.setCurrentIndex(idx)
+        guard let match = findTrack(byId: id, in: avQueuePlayer.queuedAudioTracks) else {
+            throw RmxAudioPlayerError.trackIdNotFound
         }
+        avQueuePlayer.setCurrentIndex(match.index)
     }
 
     func removeItem(_ index: Int) throws {
@@ -277,20 +272,13 @@ final class RmxAudioPlayer: NSObject {
     }
 
     func removeItem(_ id: String) throws {
-        let result = findTrack(byId: id)
-        let idx = (result?["index"] as? NSNumber)?.intValue ?? 0
-        let track = result?["track"] as? AudioTrack
-
-        guard idx >= 0 else {
+        guard let match = findTrack(byId: id, in: avQueuePlayer.queuedAudioTracks) else {
             throw RmxAudioPlayerError.trackNotFoundById(id)
         }
-        // AudioTrack* item = [self avQueuePlayer].itemsForPlayer[idx];
-        removeTrackObservers(track)
 
-        if let track = track {
-            avQueuePlayer.remove(track)
-        }
-        onStatus(.rmxstatus_ITEM_REMOVED, trackId: track?.trackId, param: track?.toDict())
+        removeTrackObservers(match.track)
+        avQueuePlayer.remove(match.track)
+        onStatus(.rmxstatus_ITEM_REMOVED, trackId: match.track.trackId, param: match.track.toDict())
     }
 
     // MARK: - player actions
@@ -1031,44 +1019,11 @@ final class RmxAudioPlayer: NSObject {
         }
     }
 
-    func findTrackIndex(byId trackId: String?, _ tracks: [AudioTrack]) -> [String: Any]? {
-        let trackInformation: (Int, AudioTrack)? = tracks
-            .enumerated()
-            .first(where: { _, track in
-                track.trackId == trackId
-            })
-
-        guard
-            let index = trackInformation?.0,
-            let track = trackInformation?.1
-        else {
+    private func findTrack(byId trackId: String?, in tracks: [AudioTrack]) -> (index: Int, track: AudioTrack)? {
+        guard let index = tracks.firstIndex(where: { $0.trackId == trackId }) else {
             return nil
         }
-
-        return [
-            "track": track,
-            "index": NSNumber(value: index)
-        ]
-    }
-
-    func findTrack(byId trackId: String?) -> [String: Any]? {
-        let trackInformation: (Int, AudioTrack)? = avQueuePlayer.queuedAudioTracks
-            .enumerated()
-            .first(where: { _, track in
-                track.trackId == trackId
-            })
-
-        guard
-            let index = trackInformation?.0,
-            let track = trackInformation?.1
-        else {
-            return nil
-        }
-
-        return [
-            "track": track,
-            "index": NSNumber(value: index)
-        ]
+        return (index, tracks[index])
     }
 
     func addTrackObservers(_ playerItem: AudioTrack?) {

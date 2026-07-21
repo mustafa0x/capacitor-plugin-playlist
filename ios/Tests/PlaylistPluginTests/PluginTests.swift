@@ -20,4 +20,24 @@ class PluginTests: XCTestCase {
         player.setWebViewActive(false)
         XCTAssertTrue(player.shouldEmitStatusToBridge(.rmxstatus_PLAYING))
     }
+
+    func testSelectingMissingTrackIdThrows() {
+        let player = RmxAudioPlayer()
+        let track = AudioTrack(url: URL(fileURLWithPath: "/track.mp3"))
+        track.trackId = "existing"
+        player.avQueuePlayer.queuedAudioTracks = [track]
+
+        XCTAssertThrowsError(try player.selectTrack(id: "missing"))
+    }
+
+    func testRemovingMissingTrackIdThrowsWithoutMutation() {
+        let player = RmxAudioPlayer()
+        let track = AudioTrack(url: URL(fileURLWithPath: "/track.mp3"))
+        track.trackId = "existing"
+        player.avQueuePlayer.queuedAudioTracks = [track]
+
+        XCTAssertThrowsError(try player.removeItem("missing"))
+        XCTAssertEqual(player.avQueuePlayer.queuedAudioTracks.count, 1)
+        XCTAssertTrue(player.avQueuePlayer.queuedAudioTracks[0] === track)
+    }
 }
