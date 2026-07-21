@@ -1,0 +1,62 @@
+name: Refine Android batch-add initial selection fix
+
+on:
+  push:
+    branches:
+      - fix/android-add-all-initial-selection
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/android-add-all-initial-selection
+          fetch-depth: 0
+
+      - name: Refine focused fix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("android/src/main/java/org/dwbn/plugins/playlist/manager/PlaylistManager.kt")
+          source = path.read_text()
+          old = """        val currentItem = currentItem
+                  val wasEmpty = audioTracks.isEmpty()
+                  audioTracks.addAll(addedItems)
+                  items = audioTracks
+
+                  if (wasEmpty) {
+                      currentPosition = 0
+                      beginPlayback(1, true)
+                  } else {
+                      currentPosition = audioTracks.indexOf(currentItem)
+                  }
+          """
+          new = """        val currentItem = currentItem
+                  audioTracks.addAll(addedItems)
+                  items = audioTracks
+
+                  if (currentItem == null) {
+                      currentPosition = 0
+                      beginPlayback(1, true)
+                  } else {
+                      currentPosition = audioTracks.indexOf(currentItem)
+                  }
+          """
+          if source.count(old) != 1:
+              raise SystemExit("expected append selection block not found exactly once")
+          path.write_text(source.replace(old, new))
+          PY
+
+      - name: Commit focused change
+        run: |
+          git rm .github/workflows/refine-android-add-all-initial-selection.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add android/src/main/java/org/dwbn/plugins/playlist/manager/PlaylistManager.kt
+          git commit -m "fix(android): initialize unselected appended playlists"
+          git push origin HEAD:fix/android-add-all-initial-selection
