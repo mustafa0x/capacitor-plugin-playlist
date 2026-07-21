@@ -67,6 +67,13 @@ public class AudioPlaylistHandler<I extends PlaylistItem, M extends BasePlaylist
         startItemPlayback(0, !this.isPlaying());
     }
 
+    @Override
+    public void seek(long positionMillis) {
+        if (getCurrentMediaPlayer() != null) {
+            super.seek(positionMillis);
+        }
+    }
+
     /**
      * Request audio focus before starting ExoMedia — DefaultPlaylistHandler.play() starts the
      * MediaPlayer first, which fails silently after native video handoff (focus abandoned in
