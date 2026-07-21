@@ -143,11 +143,10 @@ class PlaylistManager(application: Application) :
         }
 
         val currentItem = currentItem
-        val wasEmpty = audioTracks.isEmpty()
         audioTracks.addAll(addedItems)
         items = audioTracks
 
-        if (wasEmpty) {
+        if (currentItem == null) {
             currentPosition = 0
             beginPlayback(1, true)
         } else {
