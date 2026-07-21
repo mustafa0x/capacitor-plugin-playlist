@@ -167,6 +167,9 @@ public class AudioPlaylistHandler<I extends PlaylistItem, M extends BasePlaylist
 
     @Override
     public void onPrepared(@NotNull MediaPlayerApi<I> mediaPlayer) {
+        PlaylistManager manager = (PlaylistManager) getPlaylistManager();
+        mediaPlayer.setVolume(manager.getVolumeLeft(), manager.getVolumeRight());
+
         if (isVideoHandoffPrewarmActive()) {
             // Prewarm: prepare at seek position but stay silent — native video owns audio focus.
             super.onPrepared(mediaPlayer);
