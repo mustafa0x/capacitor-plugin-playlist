@@ -68,16 +68,8 @@ class PlaylistManager(application: Application) :
      * of the last item in the playlist.
      */
     override val isNextAvailable: Boolean
-        get() {
-            if (itemCount <= 1) {
-                return false;
-            }
-            val isAtEnd = currentPosition + 1 >= itemCount
-            val isConstrained = currentPosition + 1 in 0 until itemCount
-            return if (isAtEnd) {
-                loop
-            } else isConstrained
-        }
+        get() = currentPosition in 0 until itemCount &&
+            (loop || currentPosition + 1 < itemCount)
 
     override operator fun next(): AudioTrack? {
         if (isNextAvailable) {
