@@ -103,7 +103,6 @@ public class AudioPlaylistHandler<I extends PlaylistItem, M extends BasePlaylist
      */
     public void resumePlaybackAfterVideoHandoff(long positionMs) {
         ((PlaylistManager) getPlaylistManager()).setVideoHandoffForegroundRetain(false);
-        getAudioFocusProvider().requestFocus();
         play();
         if (positionMs > 0) {
             seek(positionMs);
