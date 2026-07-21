@@ -524,7 +524,8 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
         }
         AudioPlaylistHandler<?, ?> audioHandler = (AudioPlaylistHandler<?, ?>) handler;
         com.devbrackets.android.playlistcore.api.MediaPlayerApi<?> mediaPlayer = audioHandler.getCurrentMediaPlayer();
-        if (mediaPlayer != null) {
+        Object loadedItem = audioHandler.getCurrentPlaylistItem();
+        if (mediaPlayer != null && loadedItem == playlistManager.getCurrentItem()) {
             audioHandler.resumePlaybackAfterVideoHandoff(positionMs);
         } else {
             // Re-prepare within the existing foreground service — do not call beginPlayback/startService.
