@@ -262,9 +262,7 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
                 if (position >= 0) {
                     val seekPosition = (call.getFloat("position", 0f)!! * 1000.0f).toLong()
                     playlistManager.currentPosition = position
-                    val handler = playlistManager.playlistHandler
-                    val alreadyPlaying = handler?.currentMediaPlayer?.isPlaying == true
-                    if (!audioPlayerImpl!!.tryResumeVideoHandoffInPlace(seekPosition) && !alreadyPlaying) {
+                    if (!audioPlayerImpl!!.tryResumeVideoHandoffInPlace(seekPosition)) {
                         playlistManager.beginPlayback(seekPosition, false)
                     }
                 }
