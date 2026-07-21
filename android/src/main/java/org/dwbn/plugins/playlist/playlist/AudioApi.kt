@@ -71,6 +71,7 @@ class AudioApi(context: Context) : BaseMediaApi() {
     }
 
     override fun release() {
+        prepared = false
         audioPlayer.release()
     }
 
