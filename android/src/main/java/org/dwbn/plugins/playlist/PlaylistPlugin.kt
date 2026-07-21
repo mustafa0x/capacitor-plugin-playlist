@@ -315,9 +315,7 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
     @PluginMethod
     fun pause(call: PluginCall) {
         Handler(Looper.getMainLooper()).post {
-            if (audioPlayerImpl!!.playlistManager.isPlaying) {
-                audioPlayerImpl!!.playlistManager.playlistHandler?.pause(false)
-            }
+            audioPlayerImpl!!.playlistManager.playlistHandler?.pause(false)
 
             call.resolve()
 
