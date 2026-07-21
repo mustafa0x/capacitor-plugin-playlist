@@ -245,7 +245,7 @@ class PlaylistManager(application: Application) :
         }
     }
 
-    fun findTrackPosition(trackId: String): Int =
+    internal fun findTrackPosition(trackId: String): Int =
         audioTracks.indexOfFirst { it.trackId == trackId }
 
     fun getVolumeLeft(): Float {
