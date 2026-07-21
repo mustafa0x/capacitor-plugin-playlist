@@ -68,7 +68,7 @@ class Options {
      * icon resource ID for the local notification.
      */
     val icon: String
-        get() = dict.optString("icon", DEFAULT_ICON)
+        get() = (dict.opt("icon") as? String)?.takeIf { it.isNotBlank() } ?: DEFAULT_ICON
 
     companion object {
         // Default icon path
