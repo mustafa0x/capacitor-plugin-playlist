@@ -105,7 +105,7 @@ class PlaylistManager(application: Application) :
      */
     fun setAllItems(items: List<AudioTrack>?, options: PlaylistItemOptions) {
         val seekStart = when {
-            options.playFromPosition > 0 -> options.playFromPosition
+            options.playFromPosition >= 0 -> options.playFromPosition
             options.retainPosition -> currentProgress?.position ?: 0
             else -> 0
         }
@@ -310,5 +310,4 @@ class PlaylistManager(application: Application) :
         setParameters(audioTracks, 0)
         options = Options(application.baseContext)
     }
-
 }
