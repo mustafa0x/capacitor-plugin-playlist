@@ -104,19 +104,15 @@ class PlaylistManager(application: Application) :
      * List management
      */
     fun setAllItems(items: List<AudioTrack>?, options: PlaylistItemOptions) {
+        val seekStart = when {
+            options.playFromPosition > 0 -> options.playFromPosition
+            options.retainPosition -> currentProgress?.position ?: 0
+            else -> 0
+        }
+
         clearItems()
         addAllItems(items)
         currentPosition = 0
-        // If the options said to start from a specific position, do so.
-        var seekStart: Long = 0
-        if (options.playFromPosition > 0) {
-            seekStart = options.playFromPosition
-        } else if (options.retainPosition) {
-            val progress = currentProgress
-            if (progress != null) {
-              seekStart = progress.position
-            }
-        }
 
         // If the options said to start from a specific id, do so.
         var idStart: String? = null
