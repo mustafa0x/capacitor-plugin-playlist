@@ -5,7 +5,6 @@ import android.util.Log
 import androidx.annotation.FloatRange
 import androidx.annotation.IntRange
 import com.devbrackets.android.exomedia.listener.OnErrorListener
-import com.devbrackets.android.playlistcore.api.MediaPlayerApi
 import com.devbrackets.android.playlistcore.manager.ListPlaylistManager
 import org.dwbn.plugins.playlist.PlaylistItemOptions
 import org.dwbn.plugins.playlist.TrackRemovalItem
@@ -38,8 +37,6 @@ class PlaylistManager(application: Application) :
     var options: Options
     private var mediaControlsListener = WeakReference<MediaControlsListener?>(null)
     private var errorListener = WeakReference<OnErrorListener?>(null)
-    private var currentMediaPlayer: WeakReference<MediaPlayerApi<AudioTrack>?>? =
-        WeakReference(null)
 
     fun setOnErrorListener(listener: OnErrorListener?) {
         errorListener = WeakReference(listener)
@@ -50,7 +47,7 @@ class PlaylistManager(application: Application) :
     }
 
     val isPlaying: Boolean
-        get() = playlistHandler != null && playlistHandler!!.currentMediaPlayer != null && playlistHandler!!.currentMediaPlayer!!.isPlaying
+        get() = playlistHandler?.currentMediaPlayer?.isPlaying == true
 
     override fun onError(e: Exception?): Boolean {
 
@@ -266,9 +263,9 @@ class PlaylistManager(application: Application) :
     ) {
         volumeLeft = left
         volumeRight = right
-        if (currentMediaPlayer != null && currentMediaPlayer!!.get() != null) {
-            Log.i("PlaylistManager", "setVolume completing with volume = $left")
-            currentMediaPlayer!!.get()!!.setVolume(volumeLeft, volumeRight)
+        playlistHandler?.currentMediaPlayer?.let { mediaPlayer ->
+            Log.i(TAG, "setVolume completing with volume = $left")
+            mediaPlayer.setVolume(volumeLeft, volumeRight)
         }
     }
 
@@ -299,10 +296,9 @@ class PlaylistManager(application: Application) :
             return
         }
         try {
-            setVolume(volumeLeft, volumeRight)
             setPlaybackSpeed(playbackSpeed)
         } catch (e: Exception) {
-            Log.w(TAG, "beginPlayback: Error setting volume or playback speed: " + e.message)
+            Log.w(TAG, "beginPlayback: Error setting playback speed: " + e.message)
         }
     }
 
@@ -314,5 +310,4 @@ class PlaylistManager(application: Application) :
         setParameters(audioTracks, 0)
         options = Options(application.baseContext)
     }
-
 }
