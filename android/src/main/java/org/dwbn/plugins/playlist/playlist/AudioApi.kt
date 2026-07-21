@@ -78,7 +78,7 @@ class AudioApi(context: Context) : BaseMediaApi() {
     }
 
     override fun seekTo(@IntRange(from = 0L) milliseconds: Long) {
-        audioPlayer.seekTo(milliseconds.toInt().toLong())
+        audioPlayer.seekTo(milliseconds)
     }
 
     override fun handlesItem(item: AudioTrack): Boolean {
@@ -111,4 +111,5 @@ class AudioApi(context: Context) : BaseMediaApi() {
             .setContentType(contentType)
             .build()
     }
+
 }
