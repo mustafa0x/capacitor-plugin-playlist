@@ -18,6 +18,7 @@ import com.devbrackets.android.playlistcore.manager.BasePlaylistManager
 import org.dwbn.plugins.playlist.data.AudioTrack
 import java.lang.ref.WeakReference
 import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 @OptIn(UnstableApi::class)
 class AudioApi(context: Context) : BaseMediaApi() {
@@ -94,14 +95,24 @@ class AudioApi(context: Context) : BaseMediaApi() {
         }
     }
 
+    override fun onError(e: Exception?): Boolean {
+        val handled = super.onError(e)
+        val listeners = errorListenersLock.withLock {
+            errorListeners.mapNotNull { it.get() }
+        }
+        return listeners.fold(handled) { result, listener ->
+            listener.onError(e) || result
+        }
+    }
+
     fun setPlaybackSpeed(@FloatRange(from = 0.0, to = 1.0) speed: Float) {
         audioPlayer.setPlaybackSpeed(speed)
     }
 
     fun addErrorListener(listener: OnErrorListener) {
-        errorListenersLock.lock()
-        errorListeners.add(WeakReference<OnErrorListener>(listener))
-        errorListenersLock.unlock()
+        errorListenersLock.withLock {
+            errorListeners.add(WeakReference(listener))
+        }
     }
 
     @Suppress("SameParameterValue")
