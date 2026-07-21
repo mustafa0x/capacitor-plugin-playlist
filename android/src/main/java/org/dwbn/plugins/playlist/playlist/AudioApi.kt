@@ -66,6 +66,7 @@ class AudioApi(context: Context) : BaseMediaApi() {
     }
 
     override fun reset() {
+        prepared = false
         audioPlayer.reset()
     }
 
