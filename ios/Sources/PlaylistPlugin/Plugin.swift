@@ -40,7 +40,7 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater, CAPBridgedPlugin {
         CAPPluginMethod(name: "getLastKnownPosition", returnType: CAPPluginReturnPromise),
     ]
     let audioPlayerImpl = RmxAudioPlayer()
-    
+
     // MARK: - Capacitor API
     @objc func initialize(_ call: CAPPluginCall) {
         // Ensure we don't drop the initial REGISTER status event.
@@ -60,38 +60,33 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater, CAPBridgedPlugin {
     @objc func setPlaylistItems(_ call: CAPPluginCall) {
         guard
             let items = call.getArray("items", [String: Any].self),
-            let options = call.getObject("options"),
-            let tracks = createTracks(items)
+            let options = call.getObject("options")
         else {
             call.reject("Invalid playlist payload")
             return
         }
 
-        audioPlayerImpl.setPlaylistItems(tracks, options: options)
+        audioPlayerImpl.setPlaylistItems(createTracks(items), options: options)
         call.resolve();
     }
     @objc func addItem(_ call: CAPPluginCall) {
-        guard
-            let trackInfo = call.getObject("item"),
-            let track = AudioTrack.initWithDictionary(trackInfo)
-        else {
+        let trackInfo = call.getObject("item")
+        
+        guard let track = AudioTrack.initWithDictionary(trackInfo) else {
             call.reject("Invalid track item")
             return
         }
-
         audioPlayerImpl.addItem(track)
+        
         call.resolve();
     }
     @objc func addAllItems(_ call: CAPPluginCall) {
-        guard
-            let items = call.getArray("items", [String: Any].self),
-            let tracks = createTracks(items)
-        else {
+        guard let items = call.getArray("items", [String: Any].self) else {
             call.reject("Invalid track items")
             return
         }
 
-        audioPlayerImpl.addAllItems(tracks)
+        audioPlayerImpl.addAllItems(createTracks(items))
         call.resolve();
     }
     @objc func removeItem(_ call: CAPPluginCall) {
@@ -271,9 +266,8 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater, CAPBridgedPlugin {
     }
         
     // MARK: - Utility
-    func createTracks(_ items: [[String: Any]]) -> [AudioTrack]? {
-        let tracks = items.compactMap { AudioTrack.initWithDictionary($0) }
-        return tracks.count == items.count ? tracks : nil
+    private func createTracks(_ items: [[String: Any]]) -> [AudioTrack] {
+        items.compactMap { AudioTrack.initWithDictionary($0) }
     }
 
 }
