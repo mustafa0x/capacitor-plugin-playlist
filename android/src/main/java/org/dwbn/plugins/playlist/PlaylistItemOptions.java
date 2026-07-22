@@ -17,8 +17,8 @@ public class PlaylistItemOptions {
       this.options = new JSONObject();
     }
 
-    this.retainPosition = this.options.optBoolean("retainPosition", false);
-    this.startPaused = this.options.optBoolean("startPaused", false);
+    this.retainPosition = Boolean.TRUE.equals(this.options.opt("retainPosition"));
+    this.startPaused = Boolean.TRUE.equals(this.options.opt("startPaused"));
     Object playFromIdValue = this.options.opt("playFromId");
     this.playFromId = playFromIdValue instanceof String ? (String) playFromIdValue : null;
 
