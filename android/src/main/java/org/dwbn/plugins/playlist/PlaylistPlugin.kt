@@ -257,13 +257,16 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
         Handler(Looper.getMainLooper()).post {
             val id: String = call.getString("id")!!
             if ("" != id) {
-                val code = id.hashCode()
-                val seekPosition = (call.getFloat("position", 0f)!! * 1000.0f).toLong()
-                audioPlayerImpl!!.playlistManager.setCurrentItem(code.toLong())
-                val handler = audioPlayerImpl!!.playlistManager.playlistHandler
-                val alreadyPlaying = handler?.currentMediaPlayer?.isPlaying == true
-                if (!audioPlayerImpl!!.tryResumeVideoHandoffInPlace(seekPosition) && !alreadyPlaying) {
-                    audioPlayerImpl!!.playlistManager.beginPlayback(seekPosition, false)
+                val playlistManager = audioPlayerImpl!!.playlistManager
+                val position = playlistManager.findTrackPosition(id)
+                if (position >= 0) {
+                    val seekPosition = (call.getFloat("position", 0f)!! * 1000.0f).toLong()
+                    playlistManager.currentPosition = position
+                    val handler = playlistManager.playlistHandler
+                    val alreadyPlaying = handler?.currentMediaPlayer?.isPlaying == true
+                    if (!audioPlayerImpl!!.tryResumeVideoHandoffInPlace(seekPosition) && !alreadyPlaying) {
+                        playlistManager.beginPlayback(seekPosition, false)
+                    }
                 }
             }
 
@@ -297,13 +300,13 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
         Handler(Looper.getMainLooper()).post {
             val id: String = call.getString("id")!!
             if ("" != id) {
-                // alternatively we could search for the item and set the current index to that item.
-                val code = id.hashCode()
-                audioPlayerImpl!!.playlistManager.setCurrentItem(code.toLong())
-
-                val seekPosition = (call.getFloat("position", 0f)!! * 1000.0f).toLong()
-
-                audioPlayerImpl!!.playlistManager.beginPlayback(seekPosition, true)
+                val playlistManager = audioPlayerImpl!!.playlistManager
+                val position = playlistManager.findTrackPosition(id)
+                if (position >= 0) {
+                    val seekPosition = (call.getFloat("position", 0f)!! * 1000.0f).toLong()
+                    playlistManager.currentPosition = position
+                    playlistManager.beginPlayback(seekPosition, true)
+                }
             }
             call.resolve()
 
