@@ -19,7 +19,8 @@ public class PlaylistItemOptions {
 
     this.retainPosition = this.options.optBoolean("retainPosition", false);
     this.startPaused = this.options.optBoolean("startPaused", false);
-    this.playFromId = this.options.optString("playFromId", null);
+    Object playFromIdValue = this.options.opt("playFromId");
+    this.playFromId = playFromIdValue instanceof String ? (String) playFromIdValue : null;
 
     try {
       playFromPosition = (long)this.options.getDouble("playFromPosition") * 1000L;
