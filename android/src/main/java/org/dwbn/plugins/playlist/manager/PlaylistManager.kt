@@ -137,19 +137,8 @@ class PlaylistManager(application: Application) :
     }
 
     fun addItem(item: AudioTrack?) {
-        if (item == null) {
-            return
-        }
-        val countBefore = audioTracks.size;
-        audioTracks.add(item)
-        items = audioTracks
-        if (countBefore == 0) {
-            currentPosition = 0
-            beginPlayback(1, true)
-        }
-        if (this.playlistHandler != null) {
-            this.playlistHandler!!.updateMediaControls()
-        }
+        item ?: return
+        addAllItems(listOf(item))
     }
 
     fun addAllItems(its: List<AudioTrack>?) {
