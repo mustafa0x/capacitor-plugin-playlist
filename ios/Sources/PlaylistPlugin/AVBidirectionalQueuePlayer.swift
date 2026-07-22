@@ -124,7 +124,6 @@ class AVBidirectionalQueuePlayer: AVQueuePlayer {
             rate = currentrate
         }
     }
-
     open override func advanceToNextItem() {
         guard let currentIndex = currentIndex() else {
             return
@@ -140,8 +139,10 @@ class AVBidirectionalQueuePlayer: AVQueuePlayer {
         }
 
         let currentRate = rate
-        setCurrentIndex(0)
-        rate = currentRate
+        setCurrentIndex(0) { [weak self] finished in
+            guard finished else { return }
+            self?.rate = currentRate
+        }
     }
 
     func setCurrentIndex(_ currentIndex: Int) {
