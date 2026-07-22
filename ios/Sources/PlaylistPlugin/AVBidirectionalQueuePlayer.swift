@@ -35,6 +35,7 @@ let AVBidirectionalQueueCleared = "AVBidirectionalQueuePlayer.Cleared"
 
 class AVBidirectionalQueuePlayer: AVQueuePlayer {
     var queuedAudioTracks: [AudioTrack] = []
+    var wrapsWhenAtEnd = false
 
     var isPlaying: Bool {
         timeControlStatus == .playing
@@ -49,7 +50,7 @@ class AVBidirectionalQueuePlayer: AVQueuePlayer {
 
     var isAtEnd: Bool {
         guard let currentIndex = currentIndex() else { return true }
-        return currentIndex >= (queuedAudioTracks.endIndex - 1)
+        return !wrapsWhenAtEnd && currentIndex >= (queuedAudioTracks.endIndex - 1)
     }
 
     var currentAudioTrack: AudioTrack? { currentItem as? AudioTrack }
@@ -123,12 +124,24 @@ class AVBidirectionalQueuePlayer: AVQueuePlayer {
             rate = currentrate
         }
     }
+
     open override func advanceToNextItem() {
-        if currentIndex() == nil || currentIndex()! < queuedAudioTracks.count - 1{
-            super.advanceToNextItem();
-        } else {
-            setCurrentIndex(0)
+        guard let currentIndex = currentIndex() else {
+            return
         }
+
+        if currentIndex < queuedAudioTracks.count - 1 {
+            super.advanceToNextItem()
+            return
+        }
+
+        guard wrapsWhenAtEnd else {
+            return
+        }
+
+        let currentRate = rate
+        setCurrentIndex(0)
+        rate = currentRate
     }
 
     func setCurrentIndex(_ currentIndex: Int) {
