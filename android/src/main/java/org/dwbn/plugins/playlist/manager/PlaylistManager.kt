@@ -105,7 +105,8 @@ class PlaylistManager(application: Application) :
      */
     fun setAllItems(items: List<AudioTrack>?, options: PlaylistItemOptions) {
         clearItems()
-        addAllItems(items)
+        audioTracks.addAll(items.orEmpty())
+        this.items = audioTracks
         currentPosition = 0
         // If the options said to start from a specific position, do so.
         var seekStart: Long = 0
@@ -152,11 +153,24 @@ class PlaylistManager(application: Application) :
     }
 
     fun addAllItems(its: List<AudioTrack>?) {
-        val currentItem = currentItem // may be null
-        audioTracks.addAll(its.orEmpty())
-        items =
-            audioTracks // not *strictly* needed since they share the reference, but for good measure..
-        currentPosition = audioTracks.indexOf(currentItem)
+        val addedItems = its.orEmpty()
+        if (addedItems.isEmpty()) {
+            return
+        }
+
+        val currentItem = currentItem
+        val wasEmpty = audioTracks.isEmpty()
+        audioTracks.addAll(addedItems)
+        items = audioTracks
+
+        if (wasEmpty) {
+            currentPosition = 0
+            beginPlayback(1, true)
+        } else {
+            currentPosition = audioTracks.indexOf(currentItem)
+        }
+
+        playlistHandler?.updateMediaControls()
     }
 
     fun removeItem(index: Int, itemId: String): AudioTrack? {
