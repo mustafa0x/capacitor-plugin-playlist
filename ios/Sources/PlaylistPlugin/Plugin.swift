@@ -199,6 +199,7 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater, CAPBridgedPlugin {
     @objc func setLoop(_ call: CAPPluginCall) {
         let loop = call.getBool("loop", true)
         audioPlayerImpl.setLoopAll(loop)
+        audioPlayerImpl.avQueuePlayer.wrapsWhenAtEnd = loop
         call.resolve();
     }
     @objc func setPlaybackRate(_ call: CAPPluginCall) {
