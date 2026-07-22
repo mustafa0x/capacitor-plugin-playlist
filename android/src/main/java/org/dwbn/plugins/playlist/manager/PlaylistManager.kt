@@ -160,71 +160,82 @@ class PlaylistManager(application: Application) :
     }
 
     fun removeItem(index: Int, itemId: String): AudioTrack? {
-        val wasPlaying = isPlaying
-        if (playlistHandler != null) {
-            playlistHandler!!.pause(true)
+        val snapshot = audioTracks.toList()
+        val resolvedIndex = resolveRemovalIndex(snapshot, index, itemId)
+        if (resolvedIndex == INVALID_POSITION) {
+            return null
         }
-        var currentPosition = currentPosition
-        var foundItem: AudioTrack? = null
-        var removingCurrent = false
 
-        // Get the current playback position in milliseconds before removing items
-        val progress = currentProgress
-        val seekPosition: Long = if (progress != null) progress.position else 0
-
-        // If isPlaying is true, and currentItem is not null,
-        // that implies that currentItem is the currently playing item.
-        // If removingCurrent gets set to true, we are removing the currently playing item,
-        // and we need to restart playback once we do.
-        val resolvedIndex = resolveItemPosition(index, itemId)
-        if (resolvedIndex >= 0) {
-            foundItem = audioTracks[resolvedIndex]
-            if (foundItem == currentItem) {
-                removingCurrent = true
-            }
-            audioTracks.removeAt(resolvedIndex)
-        }
-        items = audioTracks
-        currentPosition = if (removingCurrent) currentPosition else audioTracks.indexOf(currentItem)
-        // If removing the current item, start from beginning (0), otherwise preserve playback position
-        val seekStart = if (removingCurrent) 0 else seekPosition
-        beginPlayback(seekStart, !wasPlaying)
-        if (this.playlistHandler != null) {
-            this.playlistHandler!!.updateMediaControls()
-        }
-        return foundItem
+        return removeResolvedItems(snapshot, linkedSetOf(resolvedIndex)).first()
     }
 
     fun removeAllItems(its: ArrayList<TrackRemovalItem>): ArrayList<AudioTrack> {
-        val removedTracks = ArrayList<AudioTrack>()
-        val wasPlaying = isPlaying
-        if (playlistHandler != null) {
-            playlistHandler!!.pause(true)
-        }
-        var currentPosition = currentPosition
-        val currentItem = currentItem // may be null
-        var removingCurrent = false
-
-        // Get the current playback position in milliseconds before removing items
-        val progress = currentProgress
-        val seekPosition: Long = if (progress != null) progress.position else 0
+        val snapshot = audioTracks.toList()
+        val resolvedIndices = LinkedHashSet<Int>()
 
         for (item in its) {
-            val resolvedIndex = resolveItemPosition(item.trackIndex, item.trackId)
-            if (resolvedIndex >= 0) {
-                val foundItem = audioTracks[resolvedIndex]
-                if (foundItem == currentItem) {
-                    removingCurrent = true
-                }
-                removedTracks.add(foundItem)
-                audioTracks.removeAt(resolvedIndex)
+            val index = resolveRemovalIndex(snapshot, item.trackIndex, item.trackId)
+            if (index != INVALID_POSITION) {
+                resolvedIndices.add(index)
             }
         }
+
+        return removeResolvedItems(snapshot, resolvedIndices)
+    }
+
+    private fun resolveRemovalIndex(
+        snapshot: List<AudioTrack>,
+        index: Int,
+        itemId: String
+    ): Int {
+        return when {
+            index in snapshot.indices -> index
+            itemId.isNotEmpty() -> snapshot.indexOfFirst { it.trackId == itemId }
+            else -> INVALID_POSITION
+        }
+    }
+
+    private fun removeResolvedItems(
+        snapshot: List<AudioTrack>,
+        indices: Set<Int>
+    ): ArrayList<AudioTrack> {
+        if (indices.isEmpty()) {
+            return arrayListOf()
+        }
+
+        val removedTracks = ArrayList<AudioTrack>(indices.size)
+        for (index in indices) {
+            removedTracks.add(snapshot[index])
+        }
+
+        val selectedPosition = currentPosition - indices.count { it < currentPosition }
+        val removingCurrent = currentPosition in indices
+        val wasPlaying = removingCurrent && isPlaying
+
+        for (index in indices.sortedDescending()) {
+            audioTracks.removeAt(index)
+        }
         items = audioTracks
-        currentPosition = if (removingCurrent) currentPosition else audioTracks.indexOf(currentItem)
-        // If removing the current item, start from beginning (0), otherwise preserve playback position
-        val seekStart = if (removingCurrent) 0 else seekPosition
-        beginPlayback(seekStart, !wasPlaying)
+
+        if (audioTracks.isEmpty()) {
+            currentPosition = INVALID_POSITION
+            playlistHandler?.stop()
+            return removedTracks
+        }
+
+        currentPosition = selectedPosition
+        if (!removingCurrent) {
+            playlistHandler?.updateMediaControls()
+            return removedTracks
+        }
+
+        val handler = playlistHandler
+        if (currentPosition == INVALID_POSITION) {
+            handler?.stop()
+        } else if (handler != null) {
+            handler.startItemPlayback(0, !wasPlaying)
+        }
+
         return removedTracks
     }
 
@@ -237,19 +248,6 @@ class PlaylistManager(application: Application) :
 
     fun getAllItems(): List<AudioTrack> {
         return audioTracks.toList()
-    }
-
-    private fun resolveItemPosition(trackIndex: Int, trackId: String): Int {
-        var resolvedPosition = -1
-        if (trackIndex >= 0 && trackIndex < audioTracks.size) {
-            resolvedPosition = trackIndex
-        } else if ("" != trackId) {
-            val itemPos = getPositionForItem(trackId.hashCode().toLong())
-            if (itemPos != INVALID_POSITION) {
-                resolvedPosition = itemPos
-            }
-        }
-        return resolvedPosition
     }
 
     fun getVolumeLeft(): Float {
@@ -314,5 +312,4 @@ class PlaylistManager(application: Application) :
         setParameters(audioTracks, 0)
         options = Options(application.baseContext)
     }
-
 }

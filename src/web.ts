@@ -113,30 +113,57 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
     }
 
     removeItem(options: RemoveItemOptions): Promise<void> {
-        // options.index can be 0; don't use a truthy check.
-        let removeIndex: number = -1;
-        if (options.index !== undefined && options.index !== null) {
-            removeIndex = options.index;
-        } else if (options.id) {
-            removeIndex = this.playlistItems.findIndex((t) => t.trackId === options.id);
-        }
-
-        if (removeIndex >= 0 && removeIndex < this.playlistItems.length) {
-            const removedTrack = this.playlistItems.splice(removeIndex, 1)[0];
-            this.updateStatus(
-                RmxAudioStatusMessage.RMXSTATUS_ITEM_REMOVED,
-                removedTrack,
-                removedTrack?.trackId
-            );
-        }
-        return Promise.resolve();
+        return this.removeItems({ items: [options] });
     }
 
-    removeItems(options: RemoveItemsOptions): Promise<void> {
-        options.items.forEach(async (item) => {
-            await this.removeItem(item);
-        });
-        return Promise.resolve();
+    async removeItems(options: RemoveItemsOptions): Promise<void> {
+        const snapshot = [...this.playlistItems];
+        const indices = new Set<number>();
+
+        for (const item of options.items || []) {
+            let index = -1;
+            if (
+                item.index !== undefined &&
+                item.index !== null &&
+                Number.isInteger(item.index) &&
+                item.index >= 0 &&
+                item.index < snapshot.length
+            ) {
+                index = item.index;
+            } else if (item.id) {
+                index = snapshot.findIndex((track) => track.trackId === item.id);
+            }
+            if (index >= 0) {
+                indices.add(index);
+            }
+        }
+
+        if (indices.size === 0) {
+            return;
+        }
+
+        const currentIndex = this.currentTrack ? snapshot.indexOf(this.currentTrack) : -1;
+        const removingCurrent = indices.has(currentIndex);
+        const nextTrack = removingCurrent
+            ? snapshot.find((_, index) => index > currentIndex && !indices.has(index))
+            : undefined;
+        const removedTracks = [...indices].map((index) => snapshot[index]);
+
+        for (const index of [...indices].sort((a, b) => b - a)) {
+            this.playlistItems.splice(index, 1);
+        }
+        for (const track of removedTracks) {
+            this.updateStatus(RmxAudioStatusMessage.RMXSTATUS_ITEM_REMOVED, track, track.trackId);
+        }
+
+        if (removingCurrent) {
+            if (nextTrack) {
+                await this.setCurrent(nextTrack);
+            } else {
+                await this.release();
+                this.currentTrack = null;
+            }
+        }
     }
 
     seekTo(options: SeekToOptions): Promise<void> {
