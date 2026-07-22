@@ -45,7 +45,7 @@ class AudioTrack (private val config: JSONObject) : PlaylistItem {
             } else trackId.hashCode().toLong()
 
     val isStream: Boolean
-        get() = config.optBoolean("isStream", false)
+        get() = config.opt("isStream") as? Boolean ?: false
 
     val trackId: String?
         get() = stringValue("trackId")?.takeIf { it.isNotEmpty() }
