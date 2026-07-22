@@ -118,14 +118,12 @@ class PlaylistManager(application: Application) :
             }
         }
 
-        // If the options said to start from a specific id, do so.
-        var idStart: String? = null
-        if (options.playFromId != null) {
-            idStart = options.playFromId
-        }
-        if (idStart != null && "" != idStart) {
-            val code = idStart.hashCode()
-            setCurrentItem(code.toLong())
+        // If the requested id exists, start there; otherwise keep the first track.
+        options.playFromId?.let { trackId ->
+            val position = findTrackPosition(trackId)
+            if (position != INVALID_POSITION) {
+                currentPosition = position
+            }
         }
 
         // We assume that if the playlist is fully loaded in one go,
@@ -259,6 +257,9 @@ class PlaylistManager(application: Application) :
     fun getAllItems(): List<AudioTrack> {
         return audioTracks.toList()
     }
+
+    internal fun findTrackPosition(trackId: String): Int =
+        audioTracks.indexOfFirst { it.trackId == trackId }
 
     fun getVolumeLeft(): Float {
         return volumeLeft
