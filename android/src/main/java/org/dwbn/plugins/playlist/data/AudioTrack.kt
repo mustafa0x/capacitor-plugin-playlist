@@ -48,12 +48,7 @@ class AudioTrack (private val config: JSONObject) : PlaylistItem {
         get() = config.optBoolean("isStream", false)
 
     val trackId: String?
-        get() {
-            val trackId = config.optString("trackId")
-            return if (trackId == "") {
-                null
-            } else trackId
-        }
+        get() = stringValue("trackId")?.takeIf { it.isNotEmpty() }
 
     // Would really like to set this to true once the cache has it...
     override val downloaded: Boolean
@@ -68,27 +63,22 @@ class AudioTrack (private val config: JSONObject) : PlaylistItem {
         get() = BasePlaylistManager.AUDIO
 
     override val mediaUrl: String
-        get() = config.optString("assetUrl", "")
+        get() = stringValue("assetUrl").orEmpty()
 
-    // we should have a good default here.
     override val thumbnailUrl: String?
-        get() {
-            val albumArt = config.optString("albumArt")
-            return if (albumArt == "") {
-                null
-            } else albumArt // we should have a good default here.
-        }
+        get() = stringValue("albumArt")?.takeIf { it.isNotEmpty() }
 
     override val artworkUrl: String?
         get() = thumbnailUrl
 
     override val title: String
-        get() = config.optString("title")
+        get() = stringValue("title").orEmpty()
 
     override val album: String
-        get() = config.optString("album")
+        get() = stringValue("album").orEmpty()
 
     override val artist: String
-        get() = config.optString("artist")
+        get() = stringValue("artist").orEmpty()
 
+    private fun stringValue(key: String): String? = config.opt(key) as? String
 }
