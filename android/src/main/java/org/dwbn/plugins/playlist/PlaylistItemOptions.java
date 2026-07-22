@@ -1,6 +1,5 @@
 package org.dwbn.plugins.playlist;
 
-import org.json.JSONException;
 import org.json.JSONObject;
 
 public class PlaylistItemOptions {
@@ -22,10 +21,9 @@ public class PlaylistItemOptions {
     Object playFromIdValue = this.options.opt("playFromId");
     this.playFromId = playFromIdValue instanceof String ? (String) playFromIdValue : null;
 
-    try {
-      playFromPosition = (long)this.options.getDouble("playFromPosition") * 1000L;
-    } catch (JSONException ex) {
-      playFromPosition = -1L;
+    Object playFromPositionValue = this.options.opt("playFromPosition");
+    if (playFromPositionValue instanceof Number) {
+      playFromPosition = Math.round(((Number) playFromPositionValue).doubleValue() * 1000.0);
     }
   }
 
