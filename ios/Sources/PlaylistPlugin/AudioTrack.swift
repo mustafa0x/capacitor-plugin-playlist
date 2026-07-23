@@ -28,12 +28,12 @@ final class AudioTrack: AVPlayerItem {
             return nil
         }
         let track = AudioTrack(url: assetUrl)
-        track.canUseNetworkResourcesForLiveStreamingWhilePaused = true
 
         if let isStream = trackInfo["isStream"] as? NSNumber,
            CFGetTypeID(isStream) == CFBooleanGetTypeID() {
             track.isStream = isStream.boolValue
         }
+        track.canUseNetworkResourcesForLiveStreamingWhilePaused = track.isStream
         
         let albumArt = trackInfo["albumArt"] as? String
         track.albumArt = albumArt != nil ? URL(string: albumArt!) : nil
