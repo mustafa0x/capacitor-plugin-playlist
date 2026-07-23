@@ -22,6 +22,7 @@ final class AudioTrack: AVPlayerItem {
             let trackId = trackInfo["trackId"] as? String,
             !trackId.isEmpty,
             let assetUrlString = trackInfo["assetUrl"] as? String,
+            !assetUrlString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
             let assetUrl = URL(string: assetUrlString)
         else {
             return nil
