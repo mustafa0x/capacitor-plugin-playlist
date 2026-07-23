@@ -186,18 +186,20 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
     }
 
     async setPlaylistItems(options: PlaylistOptions): Promise<void> {
-        this.playlistItems = options.items;
-        if (this.playlistItems.length > 0) {
-            let currentItem = this.playlistItems.filter(i => i.trackId === options.options?.playFromId)[0];
-            if (!currentItem) {
-                currentItem = this.playlistItems[0];
-            }
-            await this.setCurrent(currentItem, options.options?.playFromPosition ?? 0);
-            if (!options.options?.startPaused) {
-                await this.play();
-            }
+        const items = validateTracks(options.items);
+        await this.release();
+        this.currentTrack = null;
+        this.playlistItems = items;
+
+        if (!items.length) {
+            return;
         }
-        return Promise.resolve();
+
+        const currentItem = items.find(item => item.trackId === options.options?.playFromId) ?? items[0];
+        await this.setCurrent(currentItem, options.options?.playFromPosition ?? 0);
+        if (!options.options?.startPaused) {
+            await this.play();
+        }
     }
 
     async skipForward(): Promise<void> {
