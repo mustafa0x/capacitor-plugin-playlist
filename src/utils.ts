@@ -23,6 +23,7 @@ export const validateTrack = (track: AudioTrack) => {
     if (!track || typeof track.assetUrl !== 'string' || !track.assetUrl.trim()) {
         return null;
     }
+    track.isStream = track.isStream === true;
     if (track.trackId !== undefined && track.trackId !== null) {
         track.trackId = String(track.trackId);
     }
