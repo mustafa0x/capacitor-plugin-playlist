@@ -5,6 +5,7 @@
 //
 
 import AVFoundation
+import CoreFoundation
 
 final class AudioTrack: AVPlayerItem {
     var isStream = false
@@ -28,13 +29,9 @@ final class AudioTrack: AVPlayerItem {
         let track = AudioTrack(url: assetUrl)
         track.canUseNetworkResourcesForLiveStreamingWhilePaused = true
 
-        // Accept common JS representations.
-        if let isStream = trackInfo["isStream"] as? Bool {
-            track.isStream = isStream
-        } else if let isStreamNum = trackInfo["isStream"] as? NSNumber {
-            track.isStream = isStreamNum.boolValue
-        } else if let isStreamStr = trackInfo["isStream"] as? NSString {
-            track.isStream = isStreamStr.boolValue
+        if let isStream = trackInfo["isStream"] as? NSNumber,
+           CFGetTypeID(isStream) == CFBooleanGetTypeID() {
+            track.isStream = isStream.boolValue
         }
         
         let albumArt = trackInfo["albumArt"] as? String
