@@ -284,6 +284,9 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
 
     setPlaybackRate(options: SetPlaybackRateOptions): Promise<void> {
         if (this.audio) {
+            if (options.rate === 0) {
+                return this.pause();
+            }
             this.audio.playbackRate = options.rate;
             return Promise.resolve();
         }
