@@ -484,7 +484,7 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
                 };
                 script.onerror = () => {
                     reject();
-                }
+                };
             });
     }
 }
