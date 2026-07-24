@@ -345,6 +345,11 @@ export class RmxAudioPlayer {
             this._hasLoaded = false;
             this._currentState = 'loading';
             this._currentItem = (status.value as OnStatusTrackChangedData)?.currentItem;
+        } else if (status.msgType === RmxAudioStatusMessage.RMXSTATUS_PLAYLIST_CLEARED) {
+            this._currentItem = null;
+            this._currentState = 'stopped';
+            this._hasError = false;
+            this._hasLoaded = false;
         }
 
         // The plugin's status changes only in response to specific events.

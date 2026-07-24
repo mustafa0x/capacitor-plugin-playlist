@@ -46,6 +46,7 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
     async clearAllItems(): Promise<void> {
         await this.release();
         this.playlistItems = [];
+        this.currentTrack = null;
         this.updateStatus(RmxAudioStatusMessage.RMXSTATUS_PLAYLIST_CLEARED, null, "INVALID");
         return Promise.resolve();
     }
@@ -187,13 +188,13 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
 
     async setPlaylistItems(options: PlaylistOptions): Promise<void> {
         const items = validateTracks(options.items);
+        if (!items.length) {
+            return this.clearAllItems();
+        }
+
         await this.release();
         this.currentTrack = null;
         this.playlistItems = items;
-
-        if (!items.length) {
-            return;
-        }
 
         const currentItem = items.find(item => item.trackId === options.options?.playFromId) ?? items[0];
         await this.setCurrent(currentItem, options.options?.playFromPosition ?? 0);
