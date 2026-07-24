@@ -28,6 +28,7 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
     protected options: AudioPlayerOptions = {};
     protected currentTrack: AudioTrack | null = null;
     protected lastState = 'stopped';
+    private hlsInstance: any;
 
     addAllItems(options: AddAllItemOptions): Promise<void> {
         this.playlistItems = this.playlistItems.concat(validateTracks(options.items));
@@ -99,6 +100,8 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
 
     async release(): Promise<void> {
         await this.pause();
+        this.hlsInstance?.destroy();
+        this.hlsInstance = undefined;
         this.audio = undefined;
         return Promise.resolve();
     }
@@ -419,6 +422,7 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
                 debug: false,
                 enableWorker: true,
             });
+            this.hlsInstance = hls;
             hls.attachMedia(this.audio);
             hls.on(Hls.Events.MEDIA_ATTACHED, () => {
                 hls.loadSource(item.assetUrl);
