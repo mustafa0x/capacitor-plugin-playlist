@@ -361,7 +361,7 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
                     return;
                 }
 
-                if (this.loop && this.playlistItems.length > 0) {
+                if (this.loop) {
                     this.setCurrent(this.playlistItems[0], undefined, true);
                     return;
                 }
