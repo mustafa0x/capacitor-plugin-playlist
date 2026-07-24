@@ -972,7 +972,7 @@ final class RmxAudioPlayer: NSObject {
 
         return [
             "trackId": currentItem.trackId ?? "",
-            "isStream": currentItem.isStream ? NSNumber(value: 1) : NSNumber(value: 0),
+            "isStream": NSNumber(value: currentItem.isStream),
             "currentIndex": NSNumber(value: avQueuePlayer.currentIndex() ?? 0),
             "status": status,
             "currentPosition": NSNumber(value: position),
