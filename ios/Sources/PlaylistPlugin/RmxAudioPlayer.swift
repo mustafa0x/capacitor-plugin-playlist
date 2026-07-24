@@ -997,7 +997,7 @@ final class RmxAudioPlayer: NSObject {
     }
 
     func getTrackBufferInfo(_ playerItem: AudioTrack?) -> [String : Any]? {
-        guard let playerItem = playerItem, !CMTIME_IS_INDEFINITE(playerItem.duration) else {
+        guard let playerItem = playerItem else {
             return [
                 "start": NSNumber(value: 0.0),
                 "end": NSNumber(value: 0.0),
@@ -1007,25 +1007,32 @@ final class RmxAudioPlayer: NSObject {
         }
 
         let duration = Float(CMTimeGetSeconds(playerItem.duration))
-        let timeRanges = playerItem.loadedTimeRanges
-
-        guard !timeRanges.isEmpty else {
+        guard duration.isFinite, duration > 0 else {
             return [
                 "start": NSNumber(value: 0.0),
                 "end": NSNumber(value: 0.0),
                 "bufferPercent": NSNumber(value: 0.0),
-                "duration": NSNumber(value: duration)
+                "duration": NSNumber(value: 0.0)
             ]
         }
 
-        let timerange = timeRanges[0].timeRangeValue
-        let start = Float(CMTimeGetSeconds(timerange.start))
-        let rangeEnd = Float(CMTimeGetSeconds(timerange.duration))
-        let bufferPercent = (rangeEnd / duration) * 100.0
+        var bufferEnd = Float.zero
+        for value in playerItem.loadedTimeRanges {
+            let rangeEnd = Float(
+                CMTimeGetSeconds(
+                    CMTimeRangeGetEnd(value.timeRangeValue)
+                )
+            )
+            guard rangeEnd.isFinite else { continue }
+            bufferEnd = max(bufferEnd, rangeEnd)
+        }
+
+        bufferEnd = min(bufferEnd, duration)
+        let bufferPercent = (bufferEnd / duration) * 100.0
 
         return [
-            "start": NSNumber(value: start),
-            "end": NSNumber(value: rangeEnd),
+            "start": NSNumber(value: 0.0),
+            "end": NSNumber(value: bufferEnd),
             "bufferPercent": NSNumber(value: bufferPercent),
             "duration": NSNumber(value: duration)
         ]
