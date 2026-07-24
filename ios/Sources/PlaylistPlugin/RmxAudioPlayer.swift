@@ -49,7 +49,7 @@ final class RmxAudioPlayer: NSObject {
     private var kvoObserversRegistered = false
     private var wasPlayingInterrupted = false
     private var commandCenterRegistered = false
-    private var resetStreamOnPause = false
+    private var resetStreamOnPause = true
     private var updatedNowPlayingInfo: [String : Any]?
     private let nowPlayingInfoQueue = DispatchQueue(label: "RMXAudioPlayerNowPlayingQueue")
     private let coverArtworkCache = NSCache<NSURL, MPMediaItemArtwork>()
@@ -75,7 +75,7 @@ final class RmxAudioPlayer: NSObject {
 
     func setOptions(_ options: [String:Any]) {
         print("RmxAudioPlayer.execute=setOptions, \(options)")
-        resetStreamOnPause = (options["resetStreamOnPause"] as? NSNumber)?.boolValue ?? false
+        resetStreamOnPause = (options["resetStreamOnPause"] as? NSNumber)?.boolValue ?? resetStreamOnPause
     }
 
     func initialize() {
