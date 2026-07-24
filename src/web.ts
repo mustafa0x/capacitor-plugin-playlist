@@ -150,7 +150,7 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
     selectTrackById(options: SelectByIdOptions): Promise<void> {
         for (const item of this.playlistItems) {
             if (item.trackId === options.id) {
-                return this.setCurrent(item);
+                return this.setCurrent(item, options.position);
             }
         }
         return Promise.reject();
@@ -160,7 +160,7 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
         let index = 0;
         for (const item of this.playlistItems) {
             if (index === options.index) {
-                return this.setCurrent(item);
+                return this.setCurrent(item, options.position);
             }
             index++;
         }
