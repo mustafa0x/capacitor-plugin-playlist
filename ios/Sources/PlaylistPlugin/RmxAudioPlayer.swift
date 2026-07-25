@@ -47,7 +47,7 @@ final class RmxAudioPlayer: NSObject {
 
     private var playbackTimeObserver: Any?
     private var kvoObserversRegistered = false
-    private var wasPlayingInterrupted = false
+    private var playbackRequested = false
     private var commandCenterRegistered = false
     private var resetStreamOnPause = false
     private var updatedNowPlayingInfo: [String : Any]?
@@ -121,6 +121,9 @@ final class RmxAudioPlayer: NSObject {
         let playFromId = ((options["playFromId"] != nil) ? options["playFromId"] : nil) as? String
 
         let startPaused = options["startPaused"] != nil ? (options["startPaused"] as? Bool) ?? false : true
+        if startPaused {
+            playbackRequested = false
+        }
 
         if playFromPosition > 0.0 {
             seekToPosition = playFromPosition
@@ -226,6 +229,7 @@ final class RmxAudioPlayer: NSObject {
     }
 
     func setPlaybackRate(_ rate: Float) {
+        playbackRequested = rate != 0
         avQueuePlayer.rate = rate
     }
 
@@ -302,7 +306,7 @@ final class RmxAudioPlayer: NSObject {
     ///
     /// These are the public API for the player and wrap most of the complexity of the queue.
     func playCommand(_ isCommand: Bool) {
-        wasPlayingInterrupted = false
+        playbackRequested = true
         initializeMPCommandCenter()
         // Re-arm the periodic observer if it was removed by a prior releaseResources() call.
         installPlaybackTimeObserverIfNeeded()
@@ -325,7 +329,7 @@ final class RmxAudioPlayer: NSObject {
     }
 
     func pauseCommand(_ isCommand: Bool) {
-        wasPlayingInterrupted = false
+        playbackRequested = false
         initializeMPCommandCenter()
         avQueuePlayer.pause()
 
@@ -348,7 +352,6 @@ final class RmxAudioPlayer: NSObject {
     }
 
     func playPrevious(_ isCommand: Bool) {
-        wasPlayingInterrupted = false
         initializeMPCommandCenter()
 
         avQueuePlayer.playPreviousItem()
@@ -370,7 +373,6 @@ final class RmxAudioPlayer: NSObject {
     }
 
     func playNext(_ isCommand: Bool) {
-        wasPlayingInterrupted = false
         initializeMPCommandCenter()
 
         avQueuePlayer.advanceToNextItem()
@@ -393,7 +395,6 @@ final class RmxAudioPlayer: NSObject {
 
     func seek(to positionTime: Float, isCommand: Bool) {
         //Handle seeking with the progress slider on lockscreen or control center
-        wasPlayingInterrupted = false
         initializeMPCommandCenter()
 
         let seekToTime = CMTimeMakeWithSeconds(Float64(positionTime), preferredTimescale: 1000)
@@ -457,7 +458,7 @@ final class RmxAudioPlayer: NSObject {
         }
 
         avQueuePlayer.removeAllItems()
-        wasPlayingInterrupted = false
+        playbackRequested = false
 
         // Clear lock screen player info when playlist is cleared
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
@@ -478,7 +479,7 @@ final class RmxAudioPlayer: NSObject {
     }
 
     @objc func togglePlayPauseTrackEvent(_ event: MPRemoteCommandEvent?) -> MPRemoteCommandHandlerStatus {
-        if avQueuePlayer.isPlaying {
+        if playbackRequested {
             pauseCommand(true)
         } else {
             playCommand(true)
@@ -527,7 +528,10 @@ final class RmxAudioPlayer: NSObject {
 
         let trackStatus = getStatusItem(playerItem)
         onStatus(.rmxstatus_COMPLETED, trackId: playerItem?.trackId, param: trackStatus)
-        if (avQueuePlayer.isAtEnd) {
+        if avQueuePlayer.isAtEnd {
+            if !loop {
+                playbackRequested = false
+            }
             onStatus(.rmxstatus_PLAYLIST_COMPLETED, trackId: "INVALID", param: nil)
         }
         
@@ -551,28 +555,20 @@ final class RmxAudioPlayer: NSObject {
         }
 
         switch interruptionType {
-        case AVAudioSession.InterruptionType.began:
-                print("AVAudioSessionInterruptionTypeBegan")
-                if avQueuePlayer.isPlaying {
-                    wasPlayingInterrupted = true
-                }
+        case .began:
+            print("AVAudioSessionInterruptionTypeBegan")
+        case .ended:
+            print("AVAudioSessionInterruptionTypeEnded")
+            let shouldResumePlayback = playbackRequested
+            playbackRequested = false
 
-                // [[self avQueuePlayer] pause];
-                pauseCommand(false)
-        case AVAudioSession.InterruptionType.ended:
-                print("AVAudioSessionInterruptionTypeEnded")
             guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else { return }
             let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-            if options.contains(.shouldResume) {
-                if wasPlayingInterrupted {
-                    avQueuePlayer.play()
-                }
-            } else {
-                // Interruption ended. Playback should not resume.
+            if shouldResumePlayback && options.contains(.shouldResume) {
+                playCommand(false)
             }
-            wasPlayingInterrupted = false
-            default:
-                break
+        default:
+            break
         }
     }
 
