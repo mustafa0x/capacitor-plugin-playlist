@@ -199,7 +199,24 @@ public class AudioPlaylistHandler<I extends PlaylistItem, M extends BasePlaylist
             getAudioFocusProvider().abandonFocus();
             return;
         }
+
+        // playlistcore decides the prepared state from both startPaused and the player's current
+        // state. If play() wins the preparation race, the player is already running and the
+        // superclass incorrectly takes its PAUSED branch. Reconcile the reported state with the
+        // latest transport intent so the progress poll, notification and audible player agree.
+        boolean shouldStartPaused = getStartPaused();
         super.onPrepared(mediaPlayer);
+        if (shouldStartPaused) {
+            if (mediaPlayer.isPlaying()) {
+                mediaPlayer.pause();
+            }
+            getMediaProgressPoll().stop();
+            setPlaybackState(PlaybackState.PAUSED);
+        } else if (mediaPlayer.isPlaying() && getCurrentPlaybackState() == PlaybackState.PAUSED) {
+            getMediaProgressPoll().start();
+            setPlaybackState(PlaybackState.PLAYING);
+            setupForeground();
+        }
     }
 
     private boolean isVideoHandoffPrewarmActive() {
