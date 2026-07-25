@@ -36,6 +36,11 @@ let AVBidirectionalQueueCleared = "AVBidirectionalQueuePlayer.Cleared"
 class AVBidirectionalQueuePlayer: AVQueuePlayer {
     var queuedAudioTracks: [AudioTrack] = []
     var wrapsWhenAtEnd = false
+    private var transportIntentGeneration: UInt = 0
+
+    func recordTransportIntent() {
+        transportIntentGeneration &+= 1
+    }
 
     var isPlaying: Bool {
         timeControlStatus == .playing
@@ -115,9 +120,12 @@ class AVBidirectionalQueuePlayer: AVQueuePlayer {
         }
 
         let currentRate = rate
+        let intentGeneration = transportIntentGeneration
         setCurrentIndex(0) { [weak self] finished in
-            guard finished else { return }
-            self?.rate = currentRate
+            guard let self = self,
+                  finished,
+                  self.transportIntentGeneration == intentGeneration else { return }
+            self.rate = currentRate
         }
     }
 

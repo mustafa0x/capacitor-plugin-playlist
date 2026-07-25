@@ -228,6 +228,7 @@ final class RmxAudioPlayer: NSObject {
     }
 
     func setPlaybackRate(_ rate: Float) {
+        avQueuePlayer.recordTransportIntent()
         avQueuePlayer.rate = rate
     }
 
@@ -300,6 +301,7 @@ final class RmxAudioPlayer: NSObject {
     ///
     /// These are the public API for the player and wrap most of the complexity of the queue.
     func playCommand(_ isCommand: Bool) {
+        avQueuePlayer.recordTransportIntent()
         wasPlayingInterrupted = false
         initializeMPCommandCenter()
         // Re-arm the periodic observer if it was removed by a prior releaseResources() call.
@@ -323,6 +325,7 @@ final class RmxAudioPlayer: NSObject {
     }
 
     func pauseCommand(_ isCommand: Bool) {
+        avQueuePlayer.recordTransportIntent()
         wasPlayingInterrupted = false
         initializeMPCommandCenter()
         avQueuePlayer.pause()
@@ -346,6 +349,7 @@ final class RmxAudioPlayer: NSObject {
     }
 
     func playPrevious(_ isCommand: Bool) {
+        avQueuePlayer.recordTransportIntent()
         wasPlayingInterrupted = false
         initializeMPCommandCenter()
 
