@@ -239,12 +239,13 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
     @PluginMethod
     fun playTrackByIndex(call: PluginCall) {
         Handler(Looper.getMainLooper()).post {
-            val index: Int =
-                call.getInt("index", audioPlayerImpl!!.playlistManager.currentPosition)!!
-            val seekPosition = (call.getFloat("position", 0f)!! * 1000.0f).toLong()
-
-            audioPlayerImpl!!.playlistManager.currentPosition = index
-            audioPlayerImpl!!.playlistManager.beginPlayback(seekPosition, false)
+            val playlistManager = audioPlayerImpl!!.playlistManager
+            val index = call.getInt("index", playlistManager.currentPosition)!!
+            if (index in 0 until playlistManager.itemCount) {
+                val seekPosition = (call.getFloat("position", 0f)!! * 1000.0f).toLong()
+                playlistManager.currentPosition = index
+                playlistManager.beginPlayback(seekPosition, false)
+            }
 
             call.resolve()
 
@@ -276,14 +277,13 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
     @PluginMethod
     fun selectTrackByIndex(call: PluginCall) {
         Handler(Looper.getMainLooper()).post {
-            val index: Int =
-                call.getInt("index", audioPlayerImpl!!.playlistManager.currentPosition)!!
-
-            audioPlayerImpl!!.playlistManager.currentPosition = index
-
-            val seekPosition = (call.getFloat("position", 0f)!! * 1000.0f).toLong()
-
-            audioPlayerImpl!!.playlistManager.beginPlayback(seekPosition, true)
+            val playlistManager = audioPlayerImpl!!.playlistManager
+            val index = call.getInt("index", playlistManager.currentPosition)!!
+            if (index in 0 until playlistManager.itemCount) {
+                val seekPosition = (call.getFloat("position", 0f)!! * 1000.0f).toLong()
+                playlistManager.currentPosition = index
+                playlistManager.beginPlayback(seekPosition, true)
+            }
 
             call.resolve()
 
