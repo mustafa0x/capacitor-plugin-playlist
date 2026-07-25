@@ -62,6 +62,7 @@ final class RmxAudioPlayer: NSObject {
 
     private var lastTrackId: String? = nil
     private var lastRate: Float? = nil
+    private var emptyCurrentItemPublished = false
     override init() {
         super.init()
 
@@ -606,6 +607,7 @@ final class RmxAudioPlayer: NSObject {
             let player = object as? AVBidirectionalQueuePlayer
             let playerItem = player?.currentAudioTrack
             if playerItem != nil {
+                emptyCurrentItemPublished = false
                 guard !isReplacingItems && self.lastTrackId != playerItem?.trackId else {
                     return
                 }
@@ -614,6 +616,11 @@ final class RmxAudioPlayer: NSObject {
                 handleCurrentItemChanged(playerItem)
             }  else {
                 self.lastTrackId = nil
+                DispatchQueue.main.async { [weak self, weak player] in
+                    guard let self = self,
+                          player?.currentAudioTrack == nil else { return }
+                    self.handleNoCurrentItem()
+                }
             }
             
         case "rate":
@@ -837,6 +844,21 @@ final class RmxAudioPlayer: NSObject {
                 onStatus(.rmxstatus_STOPPED, trackId: "INVALID", param: nil)
             }
         }
+    }
+
+    private func handleNoCurrentItem() {
+        guard !emptyCurrentItemPublished else { return }
+        emptyCurrentItemPublished = true
+        let info: [String: Any] = [
+            "currentItem": NSNull(),
+            "currentIndex": NSNumber(value: -1),
+            "isAtEnd": true,
+            "isAtBeginning": true,
+            "hasNext": false,
+            "hasPrevious": false
+        ]
+        onStatus(.rmxstatus_TRACK_CHANGED, trackId: "NONE", param: info)
+        onStatus(.rmxstatus_STOPPED, trackId: "INVALID", param: nil)
     }
 
     func handleTrackStatusEvent(_ playerItem: AudioTrack?) {

@@ -350,6 +350,14 @@ export class RmxAudioPlayer {
             this._currentState = 'stopped';
             this._hasError = false;
             this._hasLoaded = false;
+        } else if (
+            status.msgType === RmxAudioStatusMessage.RMXSTATUS_STOPPED &&
+            status.trackId === 'INVALID'
+        ) {
+            this._currentItem = null;
+            this._currentState = 'stopped';
+            this._hasError = false;
+            this._hasLoaded = false;
         }
 
         // The plugin's status changes only in response to specific events.
