@@ -166,6 +166,18 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
             } else {
                 await this.release();
                 this.currentTrack = null;
+                this.updateStatus(
+                    RmxAudioStatusMessage.RMXSTATUS_TRACK_CHANGED,
+                    {
+                        currentItem: null,
+                        currentIndex: -1,
+                        isAtEnd: true,
+                        isAtBeginning: true,
+                        hasNext: false,
+                        hasPrevious: false
+                    },
+                    "NONE"
+                );
             }
         }
     }

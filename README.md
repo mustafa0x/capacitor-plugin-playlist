@@ -909,14 +909,14 @@ Contains the current track status as of the moment an onStatus update event is e
 Reports information about the playlist state when a track changes.
 Includes the new track, its index, and the state of the playlist.
 
-| Prop                | Type                                              | Description                                                                                                                |
-| ------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| **`currentItem`**   | <code><a href="#audiotrack">AudioTrack</a></code> | The new track that has been selected. May be null if you are at the end of the playlist, or the playlist has been emptied. |
-| **`currentIndex`**  | <code>number</code>                               | The 0-based index of the new track. If the playlist has ended or been cleared, this will be -1.                            |
-| **`isAtEnd`**       | <code>boolean</code>                              | Indicates whether the playlist is now currently at the last item in the list.                                              |
-| **`isAtBeginning`** | <code>boolean</code>                              | Indicates whether the playlist is now at the first item in the list                                                        |
-| **`hasNext`**       | <code>boolean</code>                              | Indicates if there are additional playlist items after the current item.                                                   |
-| **`hasPrevious`**   | <code>boolean</code>                              | Indicates if there are any items before this one in the playlist.                                                          |
+| Prop                | Type                                                      | Description                                                                                                                |
+| ------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| **`currentItem`**   | <code><a href="#audiotrack">AudioTrack</a> \| null</code> | The new track that has been selected. May be null if you are at the end of the playlist, or the playlist has been emptied. |
+| **`currentIndex`**  | <code>number</code>                                       | The 0-based index of the new track. If the playlist has ended or been cleared, this will be -1.                            |
+| **`isAtEnd`**       | <code>boolean</code>                                      | Indicates whether the playlist is now currently at the last item in the list.                                              |
+| **`isAtBeginning`** | <code>boolean</code>                                      | Indicates whether the playlist is now at the first item in the list                                                        |
+| **`hasNext`**       | <code>boolean</code>                                      | Indicates if there are additional playlist items after the current item.                                                   |
+| **`hasPrevious`**   | <code>boolean</code>                                      | Indicates if there are any items before this one in the playlist.                                                          |
 
 
 #### AudioTrack

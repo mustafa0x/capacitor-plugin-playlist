@@ -343,8 +343,8 @@ export class RmxAudioPlayer {
         if (status.msgType === RmxAudioStatusMessage.RMXSTATUS_TRACK_CHANGED) {
             this._hasError = false;
             this._hasLoaded = false;
-            this._currentState = 'loading';
-            this._currentItem = (status.value as OnStatusTrackChangedData)?.currentItem;
+            this._currentItem = (status.value as OnStatusTrackChangedData)?.currentItem ?? null;
+            this._currentState = this._currentItem ? 'loading' : 'stopped';
         } else if (status.msgType === RmxAudioStatusMessage.RMXSTATUS_PLAYLIST_CLEARED) {
             this._currentItem = null;
             this._currentState = 'stopped';

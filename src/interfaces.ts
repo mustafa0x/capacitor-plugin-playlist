@@ -168,7 +168,7 @@ export interface OnStatusTrackChangedData {
      * The new track that has been selected. May be null if you are at the end of the playlist,
      * or the playlist has been emptied.
      */
-    currentItem: AudioTrack;
+    currentItem: AudioTrack | null;
     /**
      * The 0-based index of the new track. If the playlist has ended or been cleared, this will be -1.
      */
