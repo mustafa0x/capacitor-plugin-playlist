@@ -261,14 +261,7 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
             title: audioTrack.title,
             artist: audioTrack.artist,
             album: audioTrack.album,
-            artwork: [
-                { src: audioTrack.albumArt!, sizes: '96x96',   type: 'image/jpeg' },
-                { src: audioTrack.albumArt!, sizes: '128x128', type: 'image/jpeg' },
-                { src: audioTrack.albumArt!, sizes: '192x192', type: 'image/jpeg' },
-                { src: audioTrack.albumArt!, sizes: '256x256', type: 'image/jpeg' },
-                { src: audioTrack.albumArt!, sizes: '384x384', type: 'image/jpeg' },
-                { src: audioTrack.albumArt!, sizes: '512x512', type: 'image/jpeg' },
-            ]
+            artwork: audioTrack.albumArt ? [{ src: audioTrack.albumArt }] : []
         });
 
         navigator.mediaSession.setActionHandler('play', (details) => {this.mediaSessionControlsHandler(details)});
