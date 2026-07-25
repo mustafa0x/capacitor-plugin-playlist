@@ -69,34 +69,23 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
         await this.audio?.play();
     }
 
-    async playTrackById(options: PlayByIdOptions): Promise<void> {
-        for (let track of this.playlistItems) {
-            if (track.trackId === options.id) {
-                if (track !== this.currentTrack) {
-                    await this.setCurrent(track);
-                    if (this.audio && options?.position && options.position! > 0) {
-                        this.audio!.currentTime = options.position!;
-                    }
-                }
-                return this.play();
-            }
+    private async playTrack(item: AudioTrack, position?: number): Promise<void> {
+        if (item !== this.currentTrack) {
+            await this.setCurrent(item, position);
+        } else if (position !== undefined) {
+            await this.seekTo({ position });
         }
-        return Promise.reject();
+        await this.play();
     }
 
-    async playTrackByIndex(options: PlayByIndexOptions): Promise<void> {
-        for (let { index, item } of this.playlistItems.map((item, index) => ({ index, item }))) {
-            if (index === options.index) {
-                if (item !== this.currentTrack) {
-                    await this.setCurrent(item);
-                    if (this.audio && options?.position && options.position! > 0) {
-                        this.audio!.currentTime = options.position!;
-                    }
-                }
-                return this.play();
-            }
-        }
-        return Promise.reject();
+    playTrackById(options: PlayByIdOptions): Promise<void> {
+        const track = this.playlistItems.find(item => item.trackId === options.id);
+        return track ? this.playTrack(track, options.position) : Promise.reject();
+    }
+
+    playTrackByIndex(options: PlayByIndexOptions): Promise<void> {
+        const track = this.playlistItems[options.index];
+        return track ? this.playTrack(track, options.position) : Promise.reject();
     }
 
     async release(): Promise<void> {
