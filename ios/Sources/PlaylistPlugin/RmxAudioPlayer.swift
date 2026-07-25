@@ -623,6 +623,7 @@ final class RmxAudioPlayer: NSObject {
 
             guard let playerItem = player?.currentAudioTrack else { return }
 
+            updateNowPlayingTrackInfo(playerItem, updateTrackData: false)
             let trackStatus = getStatusItem(playerItem)
             print("Playback rate changed: \(String(describing: change[.newKey])), is playing: \(player?.isPlaying ?? false)")
 
@@ -707,7 +708,7 @@ final class RmxAudioPlayer: NSObject {
             }
             updatedNowPlayingInfo![MPMediaItemPropertyPlaybackDuration] = duration ?? 0.0
             updatedNowPlayingInfo![MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime ?? 0.0
-            updatedNowPlayingInfo![MPNowPlayingInfoPropertyPlaybackRate] = 1.0
+            updatedNowPlayingInfo![MPNowPlayingInfoPropertyPlaybackRate] = avQueuePlayer.rate
 
             MPNowPlayingInfoCenter.default().nowPlayingInfo = updatedNowPlayingInfo
         }
