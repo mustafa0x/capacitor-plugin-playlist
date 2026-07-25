@@ -252,11 +252,10 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
     }
 
     async setMediaSessionRemoteControlMetadata(): Promise<void> {
-        const audioTrack: AudioTrack = this.currentTrack!;
-        if(!navigator.mediaSession) {
-            console.warn('Media Session API not available');
-            return Promise.reject();
+        if (!navigator.mediaSession) {
+            return;
         }
+        const audioTrack: AudioTrack = this.currentTrack!;
 
         navigator.mediaSession.metadata = new MediaMetadata({
             title: audioTrack.title,
@@ -276,7 +275,6 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
         navigator.mediaSession.setActionHandler('pause', (details) => {this.mediaSessionControlsHandler(details)});
         navigator.mediaSession.setActionHandler('nexttrack', (details) => {this.mediaSessionControlsHandler(details)});
         navigator.mediaSession.setActionHandler('previoustrack', (details) => {this.mediaSessionControlsHandler(details)});
-        return Promise.resolve();
     }
 
     async mediaSessionControlsHandler(actionDetails: MediaSessionActionDetails): Promise<void> {
