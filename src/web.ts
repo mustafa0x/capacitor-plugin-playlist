@@ -93,7 +93,17 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
         this.hlsInstance?.destroy();
         this.hlsInstance = undefined;
         this.audio = undefined;
-        return Promise.resolve();
+
+        const mediaSession = navigator.mediaSession;
+        if (!mediaSession) {
+            return;
+        }
+
+        mediaSession.metadata = null;
+        mediaSession.setActionHandler('play', null);
+        mediaSession.setActionHandler('pause', null);
+        mediaSession.setActionHandler('nexttrack', null);
+        mediaSession.setActionHandler('previoustrack', null);
     }
 
     async create(): Promise<void> {
