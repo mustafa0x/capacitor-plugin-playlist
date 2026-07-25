@@ -191,7 +191,11 @@ class PlaylistManager(application: Application) :
             removedTracks.add(snapshot[index])
         }
 
-        val selectedPosition = currentPosition - indices.count { it < currentPosition }
+        val selectedPosition = resolvePostRemovalPosition(
+            currentPosition,
+            indices,
+            snapshot.size - indices.size
+        )
         val removingCurrent = currentPosition in indices
         val wasPlaying = removingCurrent && isPlaying
 
@@ -206,7 +210,7 @@ class PlaylistManager(application: Application) :
             return removedTracks
         }
 
-        currentPosition = selectedPosition
+        currentPosition = selectedPosition ?: INVALID_POSITION
         if (!removingCurrent) {
             playlistHandler?.updateMediaControls()
             return removedTracks
@@ -287,4 +291,13 @@ class PlaylistManager(application: Application) :
         setParameters(audioTracks, 0)
         options = Options(application.baseContext)
     }
+}
+
+internal fun resolvePostRemovalPosition(
+    currentPosition: Int,
+    removedIndices: Set<Int>,
+    remainingCount: Int
+): Int? {
+    val shiftedPosition = currentPosition - removedIndices.count { it < currentPosition }
+    return shiftedPosition.takeIf { it in 0 until remainingCount }
 }
