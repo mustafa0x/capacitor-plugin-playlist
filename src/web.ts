@@ -51,7 +51,7 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
     }
 
     async getPlaylist(): Promise<{ items: AudioTrack[] }> {
-        return Promise.resolve({ items: this.playlistItems });
+        return { items: this.playlistItems.map(item => ({ ...item })) };
     }
 
     async initialize(): Promise<void> {
