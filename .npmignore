@@ -1,0 +1,7 @@
+android/.gradle/
+android/.project
+android/build/
+android/local.properties
+ios/Podfile.lock
+ios/Pods/
+ios/build/
