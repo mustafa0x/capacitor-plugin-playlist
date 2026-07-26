@@ -1144,6 +1144,17 @@ final class RmxAudioPlayer: NSObject {
         }
     }
 
+    private func deactivateAudioSession() {
+        do {
+            try AVAudioSession.sharedInstance().setActive(
+                false,
+                options: [.notifyOthersOnDeactivation]
+            )
+        } catch {
+            print("Could not deactivate audio session. \(error.localizedDescription)")
+        }
+    }
+
     /// Register the listener for pause and resume events.
     func observeLifeCycle() {
         let listener = NotificationCenter.default
@@ -1222,6 +1233,7 @@ final class RmxAudioPlayer: NSObject {
         removeAllTracks()
 
         isWaitingToStartPlayback = false
+        deactivateAudioSession()
     }
 
     // MARK: - Epic 45 video handoff
@@ -1244,11 +1256,7 @@ final class RmxAudioPlayer: NSObject {
         // Freeze queue: HLS item failure while paused still triggers .advance otherwise.
         avQueuePlayer.actionAtItemEnd = .none
         print("prepareForVideoHandoff: pinned=\(handoffPinnedTrackId ?? "nil") actionAtItemEnd=none")
-        do {
-            try AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
-        } catch {
-            print("prepareForVideoHandoff: setActive(false) failed: \(error.localizedDescription)")
-        }
+        deactivateAudioSession()
     }
 
     /// Completes with `true` when native handled seek (and play when requested) so JS can skip redundant seek/play.
