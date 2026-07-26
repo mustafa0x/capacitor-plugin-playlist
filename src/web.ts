@@ -17,7 +17,7 @@ import {
     SetPlaybackVolumeOptions
 } from './definitions';
 import { AudioPlayerOptions, AudioTrack } from './interfaces';
-import { validateTrack, validateTracks } from './utils';
+import { validateTracks } from './utils';
 
 declare var Hls: any;
 
@@ -31,17 +31,16 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
     private hlsInstance: any;
 
     addAllItems(options: AddAllItemOptions): Promise<void> {
-        this.playlistItems = this.playlistItems.concat(validateTracks(options.items));
+        const tracks = validateTracks(options.items);
+        this.playlistItems = this.playlistItems.concat(tracks);
+        for (const track of tracks) {
+            this.updateStatus(RmxAudioStatusMessage.RMXSTATUS_ITEM_ADDED, track, track.trackId);
+        }
         return Promise.resolve();
     }
 
     addItem(options: AddItemOptions): Promise<void> {
-        const track = validateTrack(options.item);
-        if (track) {
-            this.playlistItems.push(track);
-            this.updateStatus(RmxAudioStatusMessage.RMXSTATUS_ITEM_ADDED, track, track.trackId);
-        }
-        return Promise.resolve();
+        return this.addAllItems({ items: [options.item] });
     }
 
     async clearAllItems(): Promise<void> {
