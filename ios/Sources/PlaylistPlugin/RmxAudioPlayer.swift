@@ -1128,16 +1128,10 @@ final class RmxAudioPlayer: NSObject {
     func activateAudioSession() {
         let avSession = AVAudioSession.sharedInstance()
 
-        // If no devices are connected, play audio through the default speaker (rather than the earpiece).
-        var options: AVAudioSession.CategoryOptions = .defaultToSpeaker
-
-        // If both Bluetooth streaming options are enabled, the low quality stream is preferred; enable A2DP only.
-        options.insert(.allowBluetoothA2DP)
-
         do {
             // Always set category first, even if session is already active
             // This ensures we have the correct category after video player exits
-            try avSession.setCategory(.playAndRecord, options: options)
+            try avSession.setCategory(.playback)
         } catch {
             print("Error setting category! \(error.localizedDescription)")
         }
