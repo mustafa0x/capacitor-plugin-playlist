@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.10
+
+- Fix (web): `release()` clears `currentTrack` and resets `lastState` so resume after video (or any `release()`) cannot leave the plugin in a “current track but no `<audio>` element” state where `play()` / `playTrackById` silently no-op.
+
+## 0.10.9
+
+- Chore: Bump version; stop committing built `dist/` (consumers build via `prepublishOnly` / local `npm run build`).
+
 ## 0.10.8
 
 - Feat (iOS): `resumeAfterVideoHandoff` seek-then-play (when `play: true`) and returns `{ resumed: true }` so JS can skip redundant `playTrackById` after video exit.

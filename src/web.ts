@@ -100,6 +100,8 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
     async release(): Promise<void> {
         await this.pause();
         this.audio = undefined;
+        this.currentTrack = null;
+        this.lastState = 'stopped';
         return Promise.resolve();
     }
 
