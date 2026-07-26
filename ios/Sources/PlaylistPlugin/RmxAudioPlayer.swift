@@ -458,6 +458,7 @@ final class RmxAudioPlayer: NSObject {
 
         avQueuePlayer.removeAllItems()
         wasPlayingInterrupted = false
+        isWaitingToStartPlayback = false
 
         nowPlayingInfoQueue.sync {
             updatedNowPlayingInfo = nil
@@ -1225,8 +1226,6 @@ final class RmxAudioPlayer: NSObject {
         // commandCenterRegistered is already reset inside deregisterMusicControlsEventListener()
 
         removeAllTracks()
-
-        isWaitingToStartPlayback = false
     }
 
     // MARK: - Epic 45 video handoff
