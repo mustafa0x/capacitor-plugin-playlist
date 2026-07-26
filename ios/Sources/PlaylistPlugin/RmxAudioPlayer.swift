@@ -136,7 +136,7 @@ final class RmxAudioPlayer: NSObject {
         setTracks(items, startIndex: idx, startPosition: seekToPosition)
         
         // This will wait for the AVPlayerItemStatusReadyToPlay status change, and then trigger playback.
-        isWaitingToStartPlayback = !startPaused
+        isWaitingToStartPlayback = !startPaused && !items.isEmpty
         if isWaitingToStartPlayback {
             print("RmxAudioPlayer[setPlaylistItems] will wait for ready event to begin playback")
         }
