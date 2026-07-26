@@ -463,6 +463,9 @@ final class RmxAudioPlayer: NSObject {
         avQueuePlayer.removeAllItems()
         playbackRequested = false
 
+        nowPlayingInfoQueue.sync {
+            updatedNowPlayingInfo = nil
+        }
         // Clear lock screen player info when playlist is cleared
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
