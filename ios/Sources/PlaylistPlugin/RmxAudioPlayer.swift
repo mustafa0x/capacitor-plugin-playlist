@@ -463,6 +463,8 @@ final class RmxAudioPlayer: NSObject {
         avQueuePlayer.removeAllItems()
         playbackRequested = false
         isWaitingToStartPlayback = false
+        lastTrackId = nil
+        lastRate = nil
 
         nowPlayingInfoQueue.sync {
             updatedNowPlayingInfo = nil
