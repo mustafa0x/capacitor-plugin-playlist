@@ -774,9 +774,10 @@ final class RmxAudioPlayer: NSObject {
     }
 
     private func createCoverArtwork(_ coverUri: String) -> MPMediaItemArtwork? {
+        let coverImagePath = URL(string: coverUri)?.path ?? coverUri
         guard
-            FileManager.default.fileExists(atPath: coverUri),
-            let coverImage = UIImage(contentsOfFile: coverUri),
+            FileManager.default.fileExists(atPath: coverImagePath),
+            let coverImage = UIImage(contentsOfFile: coverImagePath),
             isCoverImageValid(coverImage)
         else {
             return nil
