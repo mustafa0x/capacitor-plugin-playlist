@@ -93,14 +93,15 @@ class PlaylistManager(application: Application) :
      * List management
      */
     fun setAllItems(items: List<AudioTrack>?, options: PlaylistItemOptions) {
+        val replacementItems = items.orEmpty()
         val seekStart = when {
             options.playFromPosition >= 0 -> options.playFromPosition
             options.retainPosition -> currentProgress?.position ?: 0
             else -> 0
         }
 
-        clearItems()
-        audioTracks.addAll(items.orEmpty())
+        clearItems(emitCurrentItemCleared = replacementItems.isEmpty())
+        audioTracks.addAll(replacementItems)
         this.items = audioTracks
         currentPosition = 0
 
@@ -197,6 +198,7 @@ class PlaylistManager(application: Application) :
             snapshot.size - indices.size
         )
         val removingCurrent = currentPosition in indices
+        val clearsCurrentItem = shouldClearCurrentItemAfterRemoval(removingCurrent, selectedPosition)
         val wasPlaying = removingCurrent && isPlaying
 
         for (index in indices.sortedDescending()) {
@@ -206,6 +208,9 @@ class PlaylistManager(application: Application) :
 
         if (audioTracks.isEmpty()) {
             currentPosition = INVALID_POSITION
+            if (clearsCurrentItem) {
+                mediaControlsListener.get()?.onCurrentItemChanged(null, INVALID_POSITION)
+            }
             playlistHandler?.stop()
             return removedTracks
         }
@@ -218,19 +223,42 @@ class PlaylistManager(application: Application) :
 
         val handler = playlistHandler
         if (currentPosition == INVALID_POSITION) {
+            if (clearsCurrentItem) {
+                mediaControlsListener.get()?.onCurrentItemChanged(null, INVALID_POSITION)
+            }
             handler?.stop()
         } else if (handler != null) {
             handler.startItemPlayback(0, !wasPlaying)
+        } else {
+            mediaControlsListener.get()?.onCurrentItemChanged(currentItem, currentPosition)
         }
 
         return removedTracks
     }
 
-    fun clearItems() {
+    fun clearItems(emitCurrentItemCleared: Boolean = true) {
+        val clearsCurrentItem = shouldEmitCurrentItemCleared(
+            hasCurrentItem = currentItem != null,
+            leavesNoCurrentItem = emitCurrentItemCleared
+        )
+        currentPosition = INVALID_POSITION
+        if (clearsCurrentItem) {
+            mediaControlsListener.get()?.onCurrentItemChanged(null, INVALID_POSITION)
+        }
         playlistHandler?.stop()
         audioTracks.clear()
         items = audioTracks
-        currentPosition = INVALID_POSITION
+    }
+
+    override fun reset() {
+        val clearsCurrentItem = shouldEmitCurrentItemCleared(
+            hasCurrentItem = currentItem != null,
+            leavesNoCurrentItem = true
+        )
+        super.reset()
+        if (clearsCurrentItem) {
+            mediaControlsListener.get()?.onCurrentItemChanged(null, INVALID_POSITION)
+        }
     }
 
     fun getAllItems(): List<AudioTrack> {
@@ -239,6 +267,14 @@ class PlaylistManager(application: Application) :
 
     internal fun findTrackPosition(trackId: String): Int =
         audioTracks.indexOfFirst { it.trackId == trackId }
+
+    fun selectPosition(position: Int) {
+        val hadCurrentItem = currentItem != null
+        currentPosition = position
+        if (shouldEmitCurrentItemCleared(hadCurrentItem, currentItem == null)) {
+            mediaControlsListener.get()?.onCurrentItemChanged(null, INVALID_POSITION)
+        }
+    }
 
     fun getVolumeLeft(): Float {
         return volumeLeft
@@ -280,6 +316,7 @@ class PlaylistManager(application: Application) :
         } catch (e: IllegalStateException) {
             // Android 12+: BackgroundServiceStartNotAllowedException when app is backgrounded
             Log.w(TAG, "beginPlayback: cannot start MediaService while backgrounded: ${e.message}")
+            mediaControlsListener.get()?.onCurrentItemChanged(currentItem, currentPosition)
         }
     }
 
@@ -301,3 +338,13 @@ internal fun resolvePostRemovalPosition(
     val shiftedPosition = currentPosition - removedIndices.count { it < currentPosition }
     return shiftedPosition.takeIf { it in 0 until remainingCount }
 }
+
+internal fun shouldClearCurrentItemAfterRemoval(
+    removingCurrent: Boolean,
+    selectedPosition: Int?
+): Boolean = removingCurrent && selectedPosition == null
+
+internal fun shouldEmitCurrentItemCleared(
+    hasCurrentItem: Boolean,
+    leavesNoCurrentItem: Boolean
+): Boolean = hasCurrentItem && leavesNoCurrentItem

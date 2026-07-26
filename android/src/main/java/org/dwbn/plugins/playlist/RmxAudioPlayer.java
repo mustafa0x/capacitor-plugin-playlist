@@ -123,12 +123,21 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
 
         try {
             param.put("currentIndex", currentIndex);
-            param.put("currentItem", currentItem != null ? currentItem.toDict() : null);
+            param.put("currentItem", currentItem != null ? currentItem.toDict() : JSONObject.NULL);
         } catch (JSONException e) {
             Log.i(TAG, "Error generating onPrevious status message: " + e.toString());
         }
 
         onStatus(RmxAudioStatusMessage.RMX_STATUS_SKIP_BACK, trackId, param);
+    }
+
+    @Override
+    public void onCurrentItemChanged(@Nullable AudioTrack currentItem, int currentIndex) {
+        onPlaylistItemChanged(
+            currentItem,
+            playlistManager.isNextAvailable(),
+            playlistManager.isPreviousAvailable()
+        );
     }
 
     @Override
@@ -138,7 +147,7 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
 
         try {
             param.put("currentIndex", currentIndex);
-            param.put("currentItem", currentItem != null ? currentItem.toDict() : null);
+            param.put("currentItem", currentItem != null ? currentItem.toDict() : JSONObject.NULL);
         } catch (JSONException e) {
             Log.i(TAG, "Error generating onNext status message: " + e.toString());
         }
@@ -204,7 +213,7 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
         JSONObject info = new JSONObject();
         String trackId = currentItem == null ? "NONE" : currentItem.getTrackId();
         try {
-            info.put("currentItem", currentItem != null ? currentItem.toDict() : null);
+            info.put("currentItem", currentItem != null ? currentItem.toDict() : JSONObject.NULL);
             info.put("currentIndex", playlistManager.getCurrentPosition());
             info.put("isAtEnd", !hasNext);
             info.put("isAtBeginning", !hasPrevious);

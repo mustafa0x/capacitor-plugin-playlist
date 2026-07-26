@@ -243,7 +243,7 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
                 call.getInt("index", audioPlayerImpl!!.playlistManager.currentPosition)!!
             val seekPosition = (call.getFloat("position", 0f)!! * 1000.0f).toLong()
 
-            audioPlayerImpl!!.playlistManager.currentPosition = index
+            audioPlayerImpl!!.playlistManager.selectPosition(index)
             audioPlayerImpl!!.playlistManager.beginPlayback(seekPosition, false)
 
             call.resolve()
@@ -261,7 +261,7 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
                 val position = playlistManager.findTrackPosition(id)
                 if (position >= 0) {
                     val seekPosition = (call.getFloat("position", 0f)!! * 1000.0f).toLong()
-                    playlistManager.currentPosition = position
+                    playlistManager.selectPosition(position)
                     if (!audioPlayerImpl!!.tryResumeVideoHandoffInPlace(seekPosition)) {
                         playlistManager.beginPlayback(seekPosition, false)
                     }
@@ -280,7 +280,7 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
             val index: Int =
                 call.getInt("index", audioPlayerImpl!!.playlistManager.currentPosition)!!
 
-            audioPlayerImpl!!.playlistManager.currentPosition = index
+            audioPlayerImpl!!.playlistManager.selectPosition(index)
 
             val seekPosition = (call.getFloat("position", 0f)!! * 1000.0f).toLong()
 
@@ -302,7 +302,7 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
                 val position = playlistManager.findTrackPosition(id)
                 if (position >= 0) {
                     val seekPosition = (call.getFloat("position", 0f)!! * 1000.0f).toLong()
-                    playlistManager.currentPosition = position
+                    playlistManager.selectPosition(position)
                     playlistManager.beginPlayback(seekPosition, true)
                 }
             }

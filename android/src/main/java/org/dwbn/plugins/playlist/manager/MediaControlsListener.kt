@@ -10,4 +10,5 @@ import org.dwbn.plugins.playlist.data.AudioTrack
 interface MediaControlsListener {
     fun onNext(currentItem: AudioTrack?, currentIndex: Int)
     fun onPrevious(currentItem: AudioTrack?, currentIndex: Int)
+    fun onCurrentItemChanged(currentItem: AudioTrack?, currentIndex: Int)
 }
