@@ -6,6 +6,18 @@ ext {
     androidxEspressoCoreVersion = project.hasProperty('androidxEspressoCoreVersion') ? rootProject.ext.androidxEspressoCoreVersion : '3.7.0'
 }
 
+buildscript {
+    ext.kotlin_version = project.hasProperty('kotlin_version') ? rootProject.ext.kotlin_version : '2.2.20'
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.13.0'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
