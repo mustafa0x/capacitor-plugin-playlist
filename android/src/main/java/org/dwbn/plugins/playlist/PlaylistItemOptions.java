@@ -3,34 +3,30 @@ package org.dwbn.plugins.playlist;
 import org.json.JSONObject;
 
 public class PlaylistItemOptions {
-  private JSONObject options;
-
-  private boolean retainPosition = false;
-  private long playFromPosition = -1L;
-  private String playFromId = null;
-  private boolean startPaused = true;
+  private final boolean retainPosition;
+  private final long playFromPosition;
+  private final String playFromId;
+  private final boolean startPaused;
 
   PlaylistItemOptions(JSONObject optionsObj) {
-    this.options = optionsObj;
-    if (this.options == null) {
-      this.options = new JSONObject();
-    }
+    JSONObject options = optionsObj != null ? optionsObj : new JSONObject();
+    retainPosition = Boolean.TRUE.equals(options.opt("retainPosition"));
+    startPaused = Boolean.TRUE.equals(options.opt("startPaused"));
 
-    this.retainPosition = Boolean.TRUE.equals(this.options.opt("retainPosition"));
-    this.startPaused = Boolean.TRUE.equals(this.options.opt("startPaused"));
-    Object playFromIdValue = this.options.opt("playFromId");
-    this.playFromId = playFromIdValue instanceof String ? (String) playFromIdValue : null;
+    Object playFromIdValue = options.opt("playFromId");
+    playFromId = playFromIdValue instanceof String ? (String) playFromIdValue : null;
 
-    Object playFromPositionValue = this.options.opt("playFromPosition");
-    if (playFromPositionValue instanceof Number) {
-      playFromPosition = Math.round(((Number) playFromPositionValue).doubleValue() * 1000.0);
-    }
+    Object playFromPositionValue = options.opt("playFromPosition");
+    playFromPosition = playFromPositionValue instanceof Number
+        ? Math.round(((Number) playFromPositionValue).doubleValue() * 1000.0)
+        : -1L;
   }
 
   PlaylistItemOptions(boolean retainPosition, long playFromPosition, boolean startPaused) {
-    this.startPaused = startPaused;
     this.retainPosition = retainPosition;
     this.playFromPosition = playFromPosition;
+    this.playFromId = null;
+    this.startPaused = startPaused;
   }
 
   public boolean getStartPaused() {
