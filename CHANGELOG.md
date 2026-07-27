@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.12
+
+This fork release consolidates the audited fix set built from upstream 0.10.9.
+
+- Android: remove the custom `Application` requirement; declare the media playback service and permissions; correct playlist identity, stable removal, append and selection behavior, seek and pause intent, rate and volume restoration, notification artwork and icon handling, and player error propagation.
+- iOS: correct queue navigation and loop boundaries, track and option parsing, interruption and audio-session lifecycle, Now Playing metadata and artwork, buffering, and release/reinitialization state.
+- Web: correct playlist replacement, removal, and clear state; play and select positions; natural completion and looping; zero playback rate; HLS and Media Session teardown; playlist snapshots; and batch item events.
+- Add focused Web and Android regression tests and tighten npm, CocoaPods, Swift Package Manager, and Gradle packaging.
+
 ## 0.10.8
 
 - Feat (iOS): `resumeAfterVideoHandoff` seek-then-play (when `play: true`) and returns `{ resumed: true }` so JS can skip redundant `playTrackById` after video exit.
