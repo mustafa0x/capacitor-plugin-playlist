@@ -152,6 +152,100 @@ final class RmxAudioPlayer: NSObject {
         let tempArr = [item]
         addTracks(tempArr, startPosition: -1)
     }
+
+    func addItem(_ item: AudioTrack, at index: Int) throws {
+        print("RmxAudioPlayer.execute=addItem at index \(index), \(item)")
+
+        let insertIndex = min(max(0, index), avQueuePlayer.queuedAudioTracks.count)
+        if insertIndex >= avQueuePlayer.queuedAudioTracks.count {
+            addItem(item)
+            return
+        }
+
+        if insertIndex == 0 {
+            avQueuePlayer.queuedAudioTracks.insert(item, at: 0)
+            rebuildQueuePreservingCurrentPlayback()
+            onStatus(.rmxstatus_ITEM_ADDED, trackId: item.trackId, param: item.toDict())
+            return
+        }
+
+        addTrackObservers(item)
+        let afterItem = avQueuePlayer.queuedAudioTracks[insertIndex - 1]
+        avQueuePlayer.insert(item, after: afterItem)
+    }
+
+    func moveItem(from: Int, to: Int) throws {
+        let count = avQueuePlayer.queuedAudioTracks.count
+        guard from >= 0, from < count, to >= 0, to < count else {
+            throw RmxAudioPlayerError.indexOutOfBounds
+        }
+        if from == to {
+            return
+        }
+
+        let item = avQueuePlayer.queuedAudioTracks.remove(at: from)
+        avQueuePlayer.queuedAudioTracks.insert(item, at: to)
+        rebuildQueuePreservingCurrentPlayback()
+
+        onStatus(.rmxstatus_ITEM_MOVED, trackId: item.trackId, param: [
+            "from": NSNumber(value: from),
+            "to": NSNumber(value: to),
+            "currentIndex": NSNumber(value: avQueuePlayer.currentIndex() ?? 0),
+        ])
+    }
+
+    func replaceItem(at index: Int?, id: String?, with replacementInfo: [String: Any]) throws {
+        let resolvedIndex: Int
+        if let index = index {
+            resolvedIndex = index
+        } else if let id = id {
+            resolvedIndex = (findTrack(byId: id)?["index"] as? NSNumber)?.intValue ?? -1
+        } else {
+            throw RmxAudioPlayerError.indexNotFound
+        }
+
+        guard resolvedIndex >= 0, resolvedIndex < avQueuePlayer.queuedAudioTracks.count else {
+            throw RmxAudioPlayerError.indexOutOfBounds
+        }
+
+        var trackInfo = replacementInfo
+        let existing = avQueuePlayer.queuedAudioTracks[resolvedIndex]
+        if trackInfo["trackId"] == nil || (trackInfo["trackId"] as? String)?.isEmpty == true {
+            trackInfo["trackId"] = existing.trackId ?? ""
+        }
+
+        guard let replacement = AudioTrack.initWithDictionary(trackInfo) else {
+            throw RmxAudioPlayerError.trackIdNotFound
+        }
+
+        removeTrackObservers(existing)
+        avQueuePlayer.queuedAudioTracks[resolvedIndex] = replacement
+        rebuildQueuePreservingCurrentPlayback()
+        onStatus(.rmxstatus_ITEM_REPLACED, trackId: replacement.trackId, param: replacement.toDict())
+    }
+
+    private func rebuildQueuePreservingCurrentPlayback() {
+        let tracks = avQueuePlayer.queuedAudioTracks
+        guard !tracks.isEmpty else {
+            return
+        }
+
+        let currentIdx = avQueuePlayer.currentIndex() ?? 0
+        let seekPos = getTrackCurrentTime(nil)
+        let wasPlaying = avQueuePlayer.isPlaying
+        let rate = avQueuePlayer.rate
+
+        setTracks(tracks, startIndex: currentIdx, startPosition: seekPos)
+
+        if wasPlaying {
+            if rate > 0 {
+                avQueuePlayer.rate = rate
+            }
+            playCommand(false)
+        } else {
+            pauseCommand(false)
+        }
+    }
     func addAllItems(_ items: [AudioTrack]) {
         addTracks(items, startPosition: -1)
     }

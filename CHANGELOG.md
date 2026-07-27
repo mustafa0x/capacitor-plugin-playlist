@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Feat: `addItem({ item, index? })` — insert at a 0-based index without interrupting playback ([#80](https://github.com/phiamo/capacitor-plugin-playlist/issues/80)).
+- Feat: `moveItem({ from, to })` — reorder playlist in place without restarting the current track ([#81](https://github.com/phiamo/capacitor-plugin-playlist/issues/81)).
+- Feat: `replaceItem({ index?, id?, item })` — replace track metadata/URL in place; preserves position when replacing the current track ([#94](https://github.com/phiamo/capacitor-plugin-playlist/issues/94)).
+- Feat: New status events `RMXSTATUS_ITEM_MOVED` (112) and `RMXSTATUS_ITEM_REPLACED` (113).
+
 ## 0.11.0
 
 - Fix (Android): Share playlist manager through `PlaylistRuntime` using the host application context; host apps no longer need `android:name="org.dwbn.plugins.playlist.App"` (legacy `App` class kept as deprecated shim).

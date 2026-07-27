@@ -97,19 +97,71 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
     fun addItem(call: PluginCall) {
         Handler(Looper.getMainLooper()).post {
             val item: JSONObject = call.getObject("item")
+            val index: Int = call.getInt("index", -1)!!
             val playerItem: AudioTrack? = getTrackItem(item)
-            audioPlayerImpl!!.getPlaylistManager().addItem(playerItem)
-
+            audioPlayerImpl!!.getPlaylistManager().addItem(playerItem, index)
 
             if (playerItem?.trackId != null) {
+                val payload = playerItem.toDict()
+                if (index >= 0) {
+                    payload.put("index", index.coerceIn(0, audioPlayerImpl!!.playlistManager.getAllItems().size - 1))
+                }
                 onStatus(
                     RmxAudioStatusMessage.RMXSTATUS_ITEM_ADDED,
                     playerItem.trackId,
-                    playerItem.toDict()
+                    payload
                 )
             }
             call.resolve()
             Log.i(TAG, "addItem")
+        }
+    }
+
+    @PluginMethod
+    fun moveItem(call: PluginCall) {
+        Handler(Looper.getMainLooper()).post {
+            val from: Int = call.getInt("from", -1)!!
+            val to: Int = call.getInt("to", -1)!!
+            val moved = audioPlayerImpl!!.playlistManager.moveItem(from, to)
+            if (!moved) {
+                call.reject("Index out of bounds")
+                return@post
+            }
+
+            val payload = JSONObject()
+            payload.put("from", from)
+            payload.put("to", to)
+            payload.put("currentIndex", audioPlayerImpl!!.playlistManager.currentPosition)
+            onStatus(
+                RmxAudioStatusMessage.RMXSTATUS_ITEM_MOVED,
+                audioPlayerImpl!!.playlistManager.currentItem?.trackId ?: "INVALID",
+                payload
+            )
+            call.resolve()
+            Log.i(TAG, "moveItem from=$from to=$to")
+        }
+    }
+
+    @PluginMethod
+    fun replaceItem(call: PluginCall) {
+        Handler(Looper.getMainLooper()).post {
+            val trackIndex: Int = call.getInt("index", -1)!!
+            val trackId: String = call.getString("id", "")!!
+            val item: JSONObject = call.getObject("item")
+            val replacement: AudioTrack? = getTrackItem(item)
+            val replaced = audioPlayerImpl!!.playlistManager.replaceItem(trackIndex, trackId, replacement)
+
+            if (replaced != null) {
+                onStatus(
+                    RmxAudioStatusMessage.RMXSTATUS_ITEM_REPLACED,
+                    replaced.trackId,
+                    replaced.toDict()
+                )
+                call.resolve()
+            } else {
+                call.reject("Could not find item!")
+            }
+            Log.i(TAG, "replaceItem")
         }
     }
 

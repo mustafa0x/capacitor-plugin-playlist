@@ -24,7 +24,9 @@ Requires **Capacitor 8+** (peer dependency `@capacitor/core >= 8.0.0`).
 ### Playlist management
 
 - `setPlaylistItems` — replace entire playlist (optional position retention)
-- `addItem` / `addAllItems` — append tracks
+- `addItem` / `addAllItems` — append tracks; `addItem` accepts optional insert index (“play next”)
+- `moveItem` — reorder without disrupting current playback
+- `replaceItem` — swap track metadata/URL in place (e.g. stream → offline file)
 - `removeItem` / `removeItems` / `clearAllItems` — remove tracks
 - `getPlaylist` — snapshot of current items
 - `setLoop` — loop entire playlist when the last track completes
@@ -83,7 +85,7 @@ See [Video handoff](#video-handoff).
 ### Not supported
 
 - Shuffle
-- Reorder API
+- Audio ads / IMA integration ([#71](https://github.com/phiamo/capacitor-plugin-playlist/issues/71))
 - Mixable / low-latency game audio (use [cordova-plugin-nativeaudio](https://github.com/floatinghotpot/cordova-plugin-nativeaudio) instead)
 - Simultaneous audio mixing (lock-screen controls require exclusive audio focus)
 
@@ -443,6 +445,8 @@ See [CHANGELOG.md](./CHANGELOG.md) for version-specific fixes (0.8.8–0.10.3).
 * [`release()`](#release)
 * [`setPlaylistItems(...)`](#setplaylistitems)
 * [`addItem(...)`](#additem)
+* [`moveItem(...)`](#moveitem)
+* [`replaceItem(...)`](#replaceitem)
 * [`addAllItems(...)`](#addallitems)
 * [`removeItem(...)`](#removeitem)
 * [`removeItems(...)`](#removeitems)
@@ -552,11 +556,44 @@ Use `options.retainPosition` to keep the current track and playback position.
 addItem(options: AddItemOptions) => Promise<void>
 ```
 
-Append a single track to the end of the playlist.
+Append a single track to the end of the playlist, or insert at a 0-based index.
+When `index` is omitted the track is appended. Insertion does not interrupt playback
+of the current track.
 
 | Param         | Type                                                      |
 | ------------- | --------------------------------------------------------- |
 | **`options`** | <code><a href="#additemoptions">AddItemOptions</a></code> |
+
+--------------------
+
+
+### moveItem(...)
+
+```typescript
+moveItem(options: MoveItemOptions) => Promise<void>
+```
+
+Move a track from one index to another without restarting the current track.
+
+| Param         | Type                                                        |
+| ------------- | ----------------------------------------------------------- |
+| **`options`** | <code><a href="#moveitemoptions">MoveItemOptions</a></code> |
+
+--------------------
+
+
+### replaceItem(...)
+
+```typescript
+replaceItem(options: ReplaceItemOptions) => Promise<void>
+```
+
+Replace a track's metadata and source URL in place (e.g. stream URL → local file).
+When replacing the currently playing track, playback position and play/pause state are preserved.
+
+| Param         | Type                                                              |
+| ------------- | ----------------------------------------------------------------- |
+| **`options`** | <code><a href="#replaceitemoptions">ReplaceItemOptions</a></code> |
 
 --------------------
 
@@ -1035,9 +1072,27 @@ that were in the previous list.
 
 #### AddItemOptions
 
-| Prop       | Type                                              |
-| ---------- | ------------------------------------------------- |
-| **`item`** | <code><a href="#audiotrack">AudioTrack</a></code> |
+| Prop        | Type                                              | Description                                 |
+| ----------- | ------------------------------------------------- | ------------------------------------------- |
+| **`item`**  | <code><a href="#audiotrack">AudioTrack</a></code> |                                             |
+| **`index`** | <code>number</code>                               | 0-based index to insert at. Omit to append. |
+
+
+#### MoveItemOptions
+
+| Prop       | Type                | Description                                |
+| ---------- | ------------------- | ------------------------------------------ |
+| **`from`** | <code>number</code> | Source index (0-based).                    |
+| **`to`**   | <code>number</code> | Destination index (0-based) after removal. |
+
+
+#### ReplaceItemOptions
+
+| Prop        | Type                                              | Description                                                                |
+| ----------- | ------------------------------------------------- | -------------------------------------------------------------------------- |
+| **`item`**  | <code><a href="#audiotrack">AudioTrack</a></code> | Replacement track data. When `trackId` is omitted the existing id is kept. |
+| **`index`** | <code>number</code>                               | Index of the track to replace (preferred over `id`).                       |
+| **`id`**    | <code>string</code>                               | Id of the track to replace.                                                |
 
 
 #### AddAllItemOptions
@@ -1189,6 +1244,8 @@ that were in the previous list.
 | **`RMXSTATUS_PLAYLIST_COMPLETED`** | <code>105</code> | The entire playlist has completed playback. After this event has been raised, the current item is set to null and the current index to -1.                                                                                                                                                                                                |
 | **`RMXSTATUS_ITEM_ADDED`**         | <code>110</code> | An item has been added to the playlist. For the setPlaylistItems and addAllItems methods, this status is raised once for every track in the collection.                                                                                                                                                                                   |
 | **`RMXSTATUS_ITEM_REMOVED`**       | <code>115</code> | An item has been removed from the playlist. For the removeItems and clearAllItems methods, this status is raised once for every track that was removed.                                                                                                                                                                                   |
+| **`RMXSTATUS_ITEM_MOVED`**         | <code>112</code> | An item has been moved within the playlist.                                                                                                                                                                                                                                                                                               |
+| **`RMXSTATUS_ITEM_REPLACED`**      | <code>113</code> | An item in the playlist has been replaced in place.                                                                                                                                                                                                                                                                                       |
 | **`RMXSTATUS_PLAYLIST_CLEARED`**   | <code>120</code> | All items have been removed from the playlist                                                                                                                                                                                                                                                                                             |
 | **`RMXSTATUS_VIEWDISAPPEAR`**      | <code>200</code> | Just for testing.. you don't need this and in fact can never receive it, the plugin is destroyed before it can be raised.                                                                                                                                                                                                                 |
 

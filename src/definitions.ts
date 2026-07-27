@@ -39,9 +39,22 @@ export interface PlaylistPlugin {
     setPlaylistItems(options: PlaylistOptions): Promise<void>;
 
     /**
-     * Append a single track to the end of the playlist.
+     * Append a single track to the end of the playlist, or insert at a 0-based index.
+     * When `index` is omitted the track is appended. Insertion does not interrupt playback
+     * of the current track.
      */
     addItem(options: AddItemOptions): Promise<void>;
+
+    /**
+     * Move a track from one index to another without restarting the current track.
+     */
+    moveItem(options: MoveItemOptions): Promise<void>;
+
+    /**
+     * Replace a track's metadata and source URL in place (e.g. stream URL → local file).
+     * When replacing the currently playing track, playback position and play/pause state are preserved.
+     */
+    replaceItem(options: ReplaceItemOptions): Promise<void>;
 
     /**
      * Append multiple tracks to the end of the playlist.
@@ -201,7 +214,25 @@ export interface PlaylistOptions {
 }
 
 export interface AddItemOptions {
-    item: AudioTrack
+    item: AudioTrack;
+    /** 0-based index to insert at. Omit to append. */
+    index?: number;
+}
+
+export interface MoveItemOptions {
+    /** Source index (0-based). */
+    from: number;
+    /** Destination index (0-based) after removal. */
+    to: number;
+}
+
+export interface ReplaceItemOptions {
+    /** Replacement track data. When `trackId` is omitted the existing id is kept. */
+    item: AudioTrack;
+    /** Index of the track to replace (preferred over `id`). */
+    index?: number;
+    /** Id of the track to replace. */
+    id?: string;
 }
 
 export interface AddAllItemOptions {

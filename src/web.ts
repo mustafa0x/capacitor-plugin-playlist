@@ -3,12 +3,14 @@ import { RmxAudioStatusMessage } from './Constants';
 import {
     AddAllItemOptions,
     AddItemOptions,
+    MoveItemOptions,
     PlayByIdOptions,
     PlayByIndexOptions,
     PlaylistOptions,
     PlaylistPlugin,
     RemoveItemOptions,
     RemoveItemsOptions,
+    ReplaceItemOptions,
     SeekToOptions,
     SelectByIdOptions,
     SelectByIndexOptions,
@@ -37,9 +39,83 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
     addItem(options: AddItemOptions): Promise<void> {
         const track = validateTrack(options.item);
         if (track) {
-            this.playlistItems.push(track);
-            this.updateStatus(RmxAudioStatusMessage.RMXSTATUS_ITEM_ADDED, track, track.trackId);
+            const insertIndex = options.index !== undefined && options.index !== null
+                ? Math.min(Math.max(0, options.index), this.playlistItems.length)
+                : this.playlistItems.length;
+            this.playlistItems.splice(insertIndex, 0, track);
+            const currentIndex = this.getCurrentIndex();
+            if (currentIndex >= 0 && insertIndex <= currentIndex) {
+                // currentTrack reference remains valid; index shifts implicitly via indexOf
+            }
+            this.updateStatus(
+                RmxAudioStatusMessage.RMXSTATUS_ITEM_ADDED,
+                { ...track, index: insertIndex },
+                track.trackId
+            );
         }
+        return Promise.resolve();
+    }
+
+    moveItem(options: MoveItemOptions): Promise<void> {
+        const { from, to } = options;
+        if (from < 0 || from >= this.playlistItems.length || to < 0 || to >= this.playlistItems.length) {
+            return Promise.reject(new Error('Index out of bounds'));
+        }
+        if (from === to) {
+            return Promise.resolve();
+        }
+        const [item] = this.playlistItems.splice(from, 1);
+        this.playlistItems.splice(to, 0, item);
+        this.updateStatus(
+            RmxAudioStatusMessage.RMXSTATUS_ITEM_MOVED,
+            { from, to, currentIndex: this.getCurrentIndex() },
+            item.trackId
+        );
+        return Promise.resolve();
+    }
+
+    async replaceItem(options: ReplaceItemOptions): Promise<void> {
+        let replaceIndex = -1;
+        if (options.index !== undefined && options.index !== null) {
+            replaceIndex = options.index;
+        } else if (options.id) {
+            replaceIndex = this.playlistItems.findIndex((t) => t.trackId === options.id);
+        }
+        if (replaceIndex < 0 || replaceIndex >= this.playlistItems.length) {
+            return Promise.reject(new Error('Could not find item to replace'));
+        }
+
+        const existing = this.playlistItems[replaceIndex];
+        const replacement = validateTrack({
+            ...options.item,
+            trackId: options.item.trackId ?? existing.trackId,
+        });
+        if (!replacement) {
+            return Promise.reject(new Error('Invalid replacement track'));
+        }
+
+        const isCurrent = this.currentTrack === existing;
+        let savedPosition = 0;
+        let wasPlaying = false;
+        if (isCurrent && this.audio) {
+            savedPosition = this.audio.currentTime;
+            wasPlaying = !this.audio.paused;
+        }
+
+        this.playlistItems[replaceIndex] = replacement;
+
+        if (isCurrent) {
+            await this.setCurrent(replacement, savedPosition);
+            if (!wasPlaying) {
+                await this.pause();
+            }
+        }
+
+        this.updateStatus(
+            RmxAudioStatusMessage.RMXSTATUS_ITEM_REPLACED,
+            replacement,
+            replacement.trackId
+        );
         return Promise.resolve();
     }
 

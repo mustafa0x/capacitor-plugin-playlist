@@ -33,6 +33,8 @@ enum RmxAudioStatusMessage : Int {
     case rmxstatus_TRACK_CHANGED = 100
     case rmxstatus_PLAYLIST_COMPLETED = 105
     case rmxstatus_ITEM_ADDED = 110
+    case rmxstatus_ITEM_MOVED = 112
+    case rmxstatus_ITEM_REPLACED = 113
     case rmxstatus_ITEM_REMOVED = 115
     case rmxstatus_PLAYLIST_CLEARED = 120
     case rmxstatus_VIEWDISAPPEAR = 200

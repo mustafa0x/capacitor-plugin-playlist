@@ -135,20 +135,108 @@ class PlaylistManager(application: Application) :
         beginPlayback(seekStart, options.startPaused)
     }
 
-    fun addItem(item: AudioTrack?) {
+    fun addItem(item: AudioTrack?, index: Int = -1) {
         if (item == null) {
             return
         }
-        val countBefore = audioTracks.size;
-        audioTracks.add(item)
+        val countBefore = audioTracks.size
+        val insertIndex = if (index >= 0) {
+            index.coerceIn(0, audioTracks.size)
+        } else {
+            audioTracks.size
+        }
+
+        if (insertIndex >= audioTracks.size) {
+            audioTracks.add(item)
+        } else {
+            audioTracks.add(insertIndex, item)
+            if (currentPosition >= insertIndex && currentPosition != INVALID_POSITION) {
+                currentPosition++
+            }
+        }
         items = audioTracks
+
         if (countBefore == 0) {
             currentPosition = 0
             beginPlayback(1, true)
+        } else if (this.playlistHandler != null) {
+            this.playlistHandler!!.updateMediaControls()
         }
+    }
+
+    fun moveItem(from: Int, to: Int): Boolean {
+        if (from < 0 || from >= audioTracks.size || to < 0 || to >= audioTracks.size) {
+            return false
+        }
+        if (from == to) {
+            return true
+        }
+
+        val item = audioTracks.removeAt(from)
+        audioTracks.add(to, item)
+        items = audioTracks
+
+        currentPosition = adjustCurrentIndexForMove(currentPosition, from, to)
+
         if (this.playlistHandler != null) {
             this.playlistHandler!!.updateMediaControls()
         }
+        return true
+    }
+
+    fun replaceItem(index: Int, itemId: String, replacement: AudioTrack?): AudioTrack? {
+        if (replacement == null) {
+            return null
+        }
+        val resolvedIndex = resolveItemPosition(index, itemId)
+        if (resolvedIndex < 0 || resolvedIndex >= audioTracks.size) {
+            return null
+        }
+
+        val existing = audioTracks[resolvedIndex]
+        val replacementConfig = replacement.toDict()
+        if (replacement.trackId.isNullOrEmpty() && existing.trackId != null) {
+            replacementConfig.put("trackId", existing.trackId)
+        }
+        val resolvedReplacement = AudioTrack(replacementConfig)
+
+        val isCurrent = existing == currentItem
+        val wasPlaying = isPlaying
+        val progress = currentProgress
+        val seekPosition: Long = if (progress != null) progress.position else 0
+
+        if (isCurrent && playlistHandler != null) {
+            playlistHandler!!.pause(true)
+        }
+
+        audioTracks[resolvedIndex] = resolvedReplacement
+        items = audioTracks
+
+        if (isCurrent) {
+            beginPlayback(seekPosition, !wasPlaying)
+        } else if (this.playlistHandler != null) {
+            this.playlistHandler!!.updateMediaControls()
+        }
+
+        return resolvedReplacement
+    }
+
+    private fun adjustCurrentIndexForMove(currentIndex: Int, from: Int, to: Int): Int {
+        if (currentIndex == INVALID_POSITION) {
+            return currentIndex
+        }
+        if (from == currentIndex) {
+            return to
+        }
+        var idx = currentIndex
+        if (from < idx && to <= idx) {
+            idx++
+        } else if (from < idx && to > idx) {
+            idx--
+        } else if (from > idx && to <= idx) {
+            idx++
+        }
+        return idx
     }
 
     fun addAllItems(its: List<AudioTrack>?) {

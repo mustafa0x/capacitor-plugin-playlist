@@ -179,14 +179,39 @@ export class RmxAudioPlayer {
     };
 
     /**
-     * Add a single track to the end of the playlist
+     * Add a single track to the end of the playlist, or at a specific index.
      */
-    addItem = (trackItem: AudioTrack) => {
+    addItem = (trackItem: AudioTrack, index?: number) => {
         const validTrackItem = validateTrack(trackItem);
         if (!validTrackItem) {
             throw new Error('Provided track is null or not an audio track');
         }
-        return Playlist.addItem({item: validTrackItem});
+        return Playlist.addItem({ item: validTrackItem, index });
+    };
+
+    /**
+     * Move a track within the playlist without disrupting playback of the current track.
+     */
+    moveItem = (from: number, to: number) => {
+        return Playlist.moveItem({ from, to });
+    };
+
+    /**
+     * Replace a track in the playlist (e.g. swap stream URL for a local file URL).
+     */
+    replaceItem = (replacement: AudioTrack, spec: { index?: number; trackId?: string }) => {
+        const validTrack = validateTrack(replacement);
+        if (!validTrack) {
+            throw new Error('Provided track is null or not an audio track');
+        }
+        if (spec.index === undefined && !spec.trackId) {
+            throw new Error('Track replacement spec is invalid');
+        }
+        return Playlist.replaceItem({
+            item: validTrack,
+            index: spec.index,
+            id: spec.trackId,
+        });
     };
 
     /**

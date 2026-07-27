@@ -18,6 +18,8 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater, CAPBridgedPlugin {
         CAPPluginMethod(name: "release", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setPlaylistItems", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "addItem", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "moveItem", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "replaceItem", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "addAllItems", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "removeItem", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "removeItems", returnType: CAPPluginReturnPromise),
@@ -68,11 +70,56 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater, CAPBridgedPlugin {
     }
     @objc func addItem(_ call: CAPPluginCall) {
         let trackInfo = call.getObject("item")
-        
-        let track = AudioTrack.initWithDictionary(trackInfo)
-        audioPlayerImpl.addItem(track!)
-        
-        call.resolve();
+
+        guard let track = AudioTrack.initWithDictionary(trackInfo) else {
+            call.reject("Invalid track")
+            return
+        }
+
+        if call.has(key: "index"), let index = call.getInt("index") {
+            do {
+                try audioPlayerImpl.addItem(track, at: index)
+                call.resolve()
+            } catch {
+                call.reject(error.localizedDescription)
+            }
+            return
+        }
+
+        audioPlayerImpl.addItem(track)
+        call.resolve()
+    }
+
+    @objc func moveItem(_ call: CAPPluginCall) {
+        guard let from = call.getInt("from"), let to = call.getInt("to") else {
+            call.reject("Missing from or to index")
+            return
+        }
+
+        do {
+            try audioPlayerImpl.moveItem(from: from, to: to)
+            call.resolve()
+        } catch {
+            call.reject(error.localizedDescription)
+        }
+    }
+
+    @objc func replaceItem(_ call: CAPPluginCall) {
+        guard let trackInfo = call.getObject("item") else {
+            call.reject("Missing item")
+            return
+        }
+
+        do {
+            try audioPlayerImpl.replaceItem(
+                at: call.getInt("index"),
+                id: call.getString("id"),
+                with: trackInfo
+            )
+            call.resolve()
+        } catch {
+            call.reject(error.localizedDescription)
+        }
     }
     @objc func addAllItems(_ call: CAPPluginCall) {
         let items = call.getArray("items", [String:Any].self)!

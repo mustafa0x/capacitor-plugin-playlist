@@ -135,6 +135,14 @@ export enum RmxAudioStatusMessage {
      */
     RMXSTATUS_ITEM_REMOVED = 115,
     /**
+     * An item has been moved within the playlist.
+     */
+    RMXSTATUS_ITEM_MOVED = 112,
+    /**
+     * An item in the playlist has been replaced in place.
+     */
+    RMXSTATUS_ITEM_REPLACED = 113,
+    /**
      * All items have been removed from the playlist
      */
     RMXSTATUS_PLAYLIST_CLEARED = 120,
@@ -172,6 +180,8 @@ export const RmxAudioStatusMessageDescriptions = {
     100: 'Track Changed',
     105: 'Playlist Completed',
     110: 'Track Added',
+    112: 'Track Moved',
+    113: 'Track Replaced',
     115: 'Track Removed',
     120: 'Playlist Cleared',
 
