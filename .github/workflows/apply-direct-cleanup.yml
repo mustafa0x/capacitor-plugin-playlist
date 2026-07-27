@@ -1,20 +1,26 @@
 name: Apply direct fork cleanup
 
 on:
-  push:
+  pull_request:
     branches:
-      - chore/fork-release-surface
+      - fork/main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
 
 permissions:
   contents: write
 
 jobs:
   apply:
+    if: github.event.pull_request.head.ref == 'chore/fork-release-surface'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: fork/main
+          ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
@@ -284,12 +290,7 @@ Keep your application's existing Android `Application` class. The legacy `org.dw
 """,
               "current track id",
           )
-          web = replace_once(
-              web,
-              "\n            //this.registerHlsListeners(hls, position);",
-              "",
-              "dead HLS call",
-          )
+          web = replace_once(web, "\n            //this.registerHlsListeners(hls, position);", "", "dead HLS call")
           web = replace_once(
               web,
               """        if (wasPlaying || forceAutoplay) {
@@ -306,7 +307,18 @@ Keep your application's existing Android `Application` class. The legacy `org.dw
           git diff --check
       - run: npm ci
       - run: npm run verify:web
+      - run: npm run build
+      - name: Verify packed files
+        run: |
+          package="$(npm pack --silent)"
+          tar -tf "$package" | grep -Fxq package/dist/esm/index.js
+          tar -tf "$package" | grep -Fxq package/dist/esm/index.d.ts
+          tar -tf "$package" | grep -Fxq package/android/src/main/AndroidManifest.xml
+          tar -tf "$package" | grep -Fxq package/ios/Sources/PlaylistPlugin/Plugin.swift
+          tar -tf "$package" | grep -Fxq package/Package.swift
       - name: Commit directly to fork/main
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.base.sha }}
         run: |
           git config user.name "Fork Maintenance"
           git config user.email "actions@users.noreply.github.com"
@@ -314,4 +326,4 @@ Keep your application's existing Android `Application` class. The legacy `org.dw
           git commit -m "docs: clarify the fork release surface"
           git add src/web.ts
           git commit -m "cleanup(web): remove dead runtime cruft"
-          git push origin HEAD:refs/heads/fork/main
+          git push --force-with-lease=refs/heads/fork/main:"$EXPECTED_HEAD" origin HEAD:refs/heads/fork/main
