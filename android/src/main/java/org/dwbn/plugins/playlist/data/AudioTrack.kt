@@ -3,11 +3,10 @@ package org.dwbn.plugins.playlist.data
 import com.devbrackets.android.playlistcore.annotation.SupportedMediaType
 import com.devbrackets.android.playlistcore.api.PlaylistItem
 import com.devbrackets.android.playlistcore.manager.BasePlaylistManager
-import org.json.JSONException
 import org.json.JSONObject
 import java.util.concurrent.atomic.AtomicLong
 
-class AudioTrack (private val config: JSONObject) : PlaylistItem {
+class AudioTrack(private val config: JSONObject) : PlaylistItem {
     companion object {
         private val nextPlaylistId = AtomicLong(1)
     }
@@ -15,34 +14,29 @@ class AudioTrack (private val config: JSONObject) : PlaylistItem {
     override val id: Long = nextPlaylistId.getAndIncrement()
 
     var bufferPercentFloat = 0f
-        set(buff) {
-            // There is a bug in MediaProgress where if bufferPercent == 100 it sets bufferPercentFloat
-            // to 100 instead of to 1.
-            field = Math.min(Math.max(bufferPercentFloat, buff), 1f)
-        }
-    var bufferPercent = 0
-        set(buff) {
-            field = Math.max(bufferPercent, buff)
-        }
-    var duration: Long = 0
-        set(dur) {
-            field = Math.max(0, dur)
+        set(value) {
+            // MediaProgress can report 100 instead of 1.
+            field = Math.min(Math.max(field, value), 1f)
         }
 
-    fun toDict(): JSONObject {
-        val info = JSONObject()
-        try {
-            info.put("trackId", trackId)
-            info.put("isStream", isStream)
-            info.put("assetUrl", mediaUrl)
-            info.put("albumArt", thumbnailUrl)
-            info.put("artist", artist)
-            info.put("album", album)
-            info.put("title", title)
-        } catch (e: JSONException) {
-            // I can think of no reason this would ever fail
+    var bufferPercent = 0
+        set(value) {
+            field = Math.max(field, value)
         }
-        return info
+
+    var duration: Long = 0
+        set(value) {
+            field = Math.max(0, value)
+        }
+
+    fun toDict(): JSONObject = JSONObject().apply {
+        put("trackId", trackId)
+        put("isStream", isStream)
+        put("assetUrl", mediaUrl)
+        put("albumArt", thumbnailUrl)
+        put("artist", artist)
+        put("album", album)
+        put("title", title)
     }
 
     val isStream: Boolean
@@ -51,17 +45,11 @@ class AudioTrack (private val config: JSONObject) : PlaylistItem {
     val trackId: String?
         get() = stringValue("trackId")?.takeIf { it.isNotEmpty() }
 
-    // Would really like to set this to true once the cache has it...
-    override val downloaded: Boolean
-        get() = false // Would really like to set this to true once the cache has it...
-
-    // ... at which point we can return a value here.
-    override val downloadedMediaUri: String?
-        get() = null // ... at which point we can return a value here.
+    override val downloaded = false
+    override val downloadedMediaUri: String? = null
 
     @get:SupportedMediaType
-    override val mediaType: Int
-        get() = BasePlaylistManager.AUDIO
+    override val mediaType = BasePlaylistManager.AUDIO
 
     override val mediaUrl: String
         get() = stringValue("assetUrl").orEmpty()
