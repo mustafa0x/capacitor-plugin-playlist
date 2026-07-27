@@ -135,13 +135,15 @@ Add to `angular.json` → architect → build → options → scripts:
 ```xml
 <uses-permission android:name="android.permission.WAKE_LOCK" />
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-<application android:name="org.dwbn.plugins.playlist.App">
+<application>
     <service android:enabled="true" android:exported="false"
              android:foregroundServiceType="mediaPlayback"
              android:name="org.dwbn.plugins.playlist.service.MediaService">
     </service>
 </application>
 ```
+
+Keep your application's existing Android `Application` class. The legacy `org.dwbn.plugins.playlist.App` class remains available for compatibility, but it is no longer required.
 
 #### Gradle 9+
 

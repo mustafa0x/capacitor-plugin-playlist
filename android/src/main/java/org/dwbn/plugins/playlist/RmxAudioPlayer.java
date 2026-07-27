@@ -1,5 +1,6 @@
 package org.dwbn.plugins.playlist;
 
+import android.content.Context;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -39,16 +40,16 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
     // It would be used to switch between playlists. I guess we could
     // support that in the future, might be cool.
     private static final int PLAYLIST_ID = 32;
-    private PlaylistManager playlistManager;
+    private final PlaylistManager playlistManager;
     private final OnStatusReportListener statusListener;
 
     private int lastBufferPercent = 0;
     private long lastDuration = 0;
     private boolean trackLoaded = false;
     private boolean resetStreamOnPause = true;
-    private final App app;
+    private final Context context;
 
-    public RmxAudioPlayer(@NonNull OnStatusReportListener statusListener, App context) {
+    public RmxAudioPlayer(@NonNull OnStatusReportListener statusListener, @NonNull Context context) {
         // AudioPlayerPlugin and RmxAudioPlayer are separate classes in order to increase
         // the portability of this code.
         // Because AudioPlayerPlugin itself holds a strong reference to this class,
@@ -56,10 +57,9 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
         // but these two objects will always live together (And the plugin couldn't function
         // at all if this one gets garbage collected).
         this.statusListener = statusListener;
-        this.app = context;
+        this.context = context.getApplicationContext();
+        this.playlistManager = PlaylistRuntime.getPlaylistManager(this.context);
 
-        app.resetPlaylistManager();
-        getPlaylistManager();
         playlistManager.setId(PLAYLIST_ID);
         playlistManager.setPlaybackStatusListener(this);
         playlistManager.setOnErrorListener(this);
@@ -67,7 +67,6 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
     }
 
     public PlaylistManager getPlaylistManager() {
-        playlistManager = app.getPlaylistManager();
         return playlistManager;
     }
 
@@ -81,7 +80,7 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
     }
 
     public void setOptions(JSONObject val) {
-        Options options = new Options(app, val);
+        Options options = new Options(context, val);
         getPlaylistManager().setOptions(options);
     }
 
@@ -412,7 +411,6 @@ public class RmxAudioPlayer implements PlaybackStatusListener<AudioTrack>,
 
     public void resume() {
         Log.i(TAG, "Resumed, wiring up event listeners");
-        getPlaylistManager();
         registerPlaylistListeners();
         //Makes sure to retrieve the current playback information
         updateCurrentPlaybackInformation();
