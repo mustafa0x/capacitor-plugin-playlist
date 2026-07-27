@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { RmxAudioStatusMessage } from '../src/Constants';
 import type { AudioTrack } from '../src/interfaces';
+import { Playlist } from '../src/plugin';
 import { PlaylistWeb } from '../src/web';
 
 const track = (trackId: string): AudioTrack => ({
@@ -40,6 +41,20 @@ class TestPlaylistWeb extends PlaylistWeb {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe('Playlist Web registration', () => {
+  it('shares one implementation across concurrent first calls', async () => {
+    const statuses: RmxAudioStatusMessage[] = [];
+
+    const [listener] = await Promise.all([
+      Playlist.addListener('status', ({ status }) => statuses.push(status.msgType)),
+      Playlist.initialize(),
+    ]);
+
+    expect(statuses).toContain(RmxAudioStatusMessage.RMXSTATUS_INIT);
+    await listener.remove();
+  });
 });
 
 describe('PlaylistWeb transitions', () => {
