@@ -71,3 +71,50 @@ jobs:
           tar -tf "$package" | grep -Fxq package/android/src/main/AndroidManifest.xml
           tar -tf "$package" | grep -Fxq package/ios/Sources/PlaylistPlugin/Plugin.swift
           tar -tf "$package" | grep -Fxq package/Package.swift
+
+  maintenance:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'chore/fork-release-surface'
+    needs:
+      - web
+      - android
+      - ios
+      - package
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Apply cleanup to the clean fork base
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          cp .github/apply-wrapper-cleanup.py /tmp/apply-wrapper-cleanup.py
+          git reset --hard "$BASE_SHA"
+          python /tmp/apply-wrapper-cleanup.py
+          git diff --check
+      - run: npm ci
+      - run: npm run verify:web
+      - run: npm run build
+      - name: Verify packed files
+        run: |
+          package="$(npm pack --silent)"
+          tar -tf "$package" | grep -Fxq package/dist/esm/index.js
+          tar -tf "$package" | grep -Fxq package/dist/esm/index.d.ts
+          tar -tf "$package" | grep -Fxq package/android/src/main/AndroidManifest.xml
+          tar -tf "$package" | grep -Fxq package/ios/Sources/PlaylistPlugin/Plugin.swift
+          tar -tf "$package" | grep -Fxq package/Package.swift
+      - name: Commit directly to fork/main
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git config user.name "Fork Maintenance"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/RmxAudioPlayer.ts
+          git commit -m "cleanup(ts): simplify player wrapper"
+          git push --force-with-lease=refs/heads/fork/main:"$EXPECTED_HEAD" origin HEAD:refs/heads/fork/main
