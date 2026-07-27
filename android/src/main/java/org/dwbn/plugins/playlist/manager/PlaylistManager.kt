@@ -176,7 +176,7 @@ class PlaylistManager(application: Application) :
         audioTracks.add(to, item)
         items = audioTracks
 
-        currentPosition = adjustCurrentIndexForMove(currentPosition, from, to)
+        currentPosition = adjustCurrentIndexForMove(currentPosition, from, to, INVALID_POSITION)
 
         if (this.playlistHandler != null) {
             this.playlistHandler!!.updateMediaControls()
@@ -194,11 +194,7 @@ class PlaylistManager(application: Application) :
         }
 
         val existing = audioTracks[resolvedIndex]
-        val replacementConfig = replacement.toDict()
-        if (replacement.trackId.isNullOrEmpty() && existing.trackId != null) {
-            replacementConfig.put("trackId", existing.trackId)
-        }
-        val resolvedReplacement = AudioTrack(replacementConfig)
+        val resolvedReplacement = mergeReplacementTrackId(existing, replacement)
 
         val isCurrent = existing == currentItem
         val wasPlaying = isPlaying
@@ -221,23 +217,6 @@ class PlaylistManager(application: Application) :
         return resolvedReplacement
     }
 
-    private fun adjustCurrentIndexForMove(currentIndex: Int, from: Int, to: Int): Int {
-        if (currentIndex == INVALID_POSITION) {
-            return currentIndex
-        }
-        if (from == currentIndex) {
-            return to
-        }
-        var idx = currentIndex
-        if (from < idx && to <= idx) {
-            idx++
-        } else if (from < idx && to > idx) {
-            idx--
-        } else if (from > idx && to <= idx) {
-            idx++
-        }
-        return idx
-    }
 
     fun addAllItems(its: List<AudioTrack>?) {
         val currentItem = currentItem // may be null
@@ -396,6 +375,41 @@ class PlaylistManager(application: Application) :
 
     companion object {
         private const val TAG = "PlaylistManager"
+
+        /**
+         * Computes the new position of the "current" item after moving an item from index
+         * [from] to index [to] (post-removal insertion semantics, i.e. matching
+         * `MutableList.removeAt(from)` followed by `MutableList.add(to, item)`).
+         *
+         * Pure function so it can be unit-tested without an Android/Application context.
+         */
+        @JvmStatic
+        fun adjustCurrentIndexForMove(currentIndex: Int, from: Int, to: Int, invalidPosition: Int): Int {
+            if (currentIndex == invalidPosition) {
+                return currentIndex
+            }
+            if (from == currentIndex) {
+                return to
+            }
+            val mid = if (from < currentIndex) currentIndex - 1 else currentIndex
+            return if (mid >= to) mid + 1 else mid
+        }
+
+        /**
+         * Builds the [AudioTrack] that should replace [existing], backfilling `trackId` from
+         * [existing] when [replacement] doesn't specify one (an omitted id signals "keep the
+         * existing id" rather than "generate a new one").
+         *
+         * Pure function so it can be unit-tested without an Android/Application context.
+         */
+        @JvmStatic
+        fun mergeReplacementTrackId(existing: AudioTrack, replacement: AudioTrack): AudioTrack {
+            val replacementConfig = replacement.toDict()
+            if (replacement.trackId.isNullOrEmpty() && existing.trackId != null) {
+                replacementConfig.put("trackId", existing.trackId)
+            }
+            return AudioTrack(replacementConfig)
+        }
     }
 
     init {

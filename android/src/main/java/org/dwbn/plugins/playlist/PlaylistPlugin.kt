@@ -148,7 +148,9 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
             val trackIndex: Int = call.getInt("index", -1)!!
             val trackId: String = call.getString("id", "")!!
             val item: JSONObject = call.getObject("item")
-            val replacement: AudioTrack? = getTrackItem(item)
+            // An omitted trackId in the payload intentionally means "keep the existing id",
+            // so this must not be rejected the way a brand-new addItem() track would be.
+            val replacement: AudioTrack? = getTrackItem(item, requireTrackId = false)
             val replaced = audioPlayerImpl!!.playlistManager.replaceItem(trackIndex, trackId, replacement)
 
             if (replaced != null) {
@@ -527,10 +529,10 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
         audioPlayerImpl!!.playlistManager.clearItems()
     }
 
-    private fun getTrackItem(item: JSONObject?): AudioTrack? {
+    private fun getTrackItem(item: JSONObject?, requireTrackId: Boolean = true): AudioTrack? {
         if (item != null) {
             val track = AudioTrack(item)
-            return if (track.trackId != null) {
+            return if (!requireTrackId || track.trackId != null) {
                 track
             } else null
         }

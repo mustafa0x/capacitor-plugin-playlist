@@ -76,7 +76,7 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater, CAPBridgedPlugin {
             return
         }
 
-        if call.has(key: "index"), let index = call.getInt("index") {
+        if let index = call.getInt("index") {
             do {
                 try audioPlayerImpl.addItem(track, at: index)
                 call.resolve()

@@ -1,9 +1,27 @@
+// Consuming Capacitor apps normally supply the Android/Kotlin Gradle plugin classpath from
+// their own root build.gradle. This buildscript block is only needed to run `./gradlew test`
+// standalone from this module (e.g. `npm run verify:android`); it is additive to this
+// subproject's own build-script classpath and does not affect a parent app's configuration.
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.13.0'
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.0'
+    }
+}
+
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 ext {
     junitVersion = project.hasProperty('junitVersion') ? rootProject.ext.junitVersion : '4.13.2'
     androidxJunitVersion = project.hasProperty('androidxJunitVersion') ? rootProject.ext.androidxJunitVersion : '1.3.0'
     androidxEspressoCoreVersion = project.hasProperty('androidxEspressoCoreVersion') ? rootProject.ext.androidxEspressoCoreVersion : '3.7.0'
+    // Only used when this module is built standalone (e.g. `npm run verify:android`); when
+    // embedded, the consuming app's root build.gradle already sets rootProject.ext.kotlin_version.
+    kotlin_version = project.hasProperty('kotlinVersion') ? rootProject.ext.kotlinVersion : '2.1.0'
 }
 
 apply plugin: 'com.android.library'
@@ -50,6 +68,9 @@ dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
+    // Real org.json implementation for plain JVM unit tests: the android.jar stub used for
+    // compilation throws "Stub!" for org.json.* at runtime outside instrumented/Robolectric tests.
+    testImplementation "org.json:json:20231013"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation "androidx.core:core-ktx:1.17.0"

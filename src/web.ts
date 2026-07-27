@@ -43,10 +43,8 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
                 ? Math.min(Math.max(0, options.index), this.playlistItems.length)
                 : this.playlistItems.length;
             this.playlistItems.splice(insertIndex, 0, track);
-            const currentIndex = this.getCurrentIndex();
-            if (currentIndex >= 0 && insertIndex <= currentIndex) {
-                // currentTrack reference remains valid; index shifts implicitly via indexOf
-            }
+            // currentTrack is tracked by object reference, so getCurrentIndex() (indexOf)
+            // automatically reflects the shift caused by this insertion; no bookkeeping needed here.
             this.updateStatus(
                 RmxAudioStatusMessage.RMXSTATUS_ITEM_ADDED,
                 { ...track, index: insertIndex },

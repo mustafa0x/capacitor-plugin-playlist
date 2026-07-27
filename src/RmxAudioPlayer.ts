@@ -198,17 +198,19 @@ export class RmxAudioPlayer {
 
     /**
      * Replace a track in the playlist (e.g. swap stream URL for a local file URL).
+     * Unlike addItem, the replacement is NOT run through validateTrack: an omitted
+     * `replacement.trackId` intentionally signals "keep the existing id", and
+     * validateTrack would otherwise auto-assign a new random UUID and defeat that.
      */
     replaceItem = (replacement: AudioTrack, spec: { index?: number; trackId?: string }) => {
-        const validTrack = validateTrack(replacement);
-        if (!validTrack) {
+        if (!replacement) {
             throw new Error('Provided track is null or not an audio track');
         }
         if (spec.index === undefined && !spec.trackId) {
             throw new Error('Track replacement spec is invalid');
         }
         return Playlist.replaceItem({
-            item: validTrack,
+            item: replacement,
             index: spec.index,
             id: spec.trackId,
         });

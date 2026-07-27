@@ -163,6 +163,7 @@ final class RmxAudioPlayer: NSObject {
         }
 
         if insertIndex == 0 {
+            registerTrackObservers(item)
             avQueuePlayer.queuedAudioTracks.insert(item, at: 0)
             rebuildQueuePreservingCurrentPlayback()
             onStatus(.rmxstatus_ITEM_ADDED, trackId: item.trackId, param: item.toDict())
@@ -219,11 +220,22 @@ final class RmxAudioPlayer: NSObject {
         }
 
         removeTrackObservers(existing)
+        registerTrackObservers(replacement)
         avQueuePlayer.queuedAudioTracks[resolvedIndex] = replacement
         rebuildQueuePreservingCurrentPlayback()
         onStatus(.rmxstatus_ITEM_REPLACED, trackId: replacement.trackId, param: replacement.toDict())
     }
 
+    /// Reinserts the (already-mutated) `queuedAudioTracks` into the native AVQueuePlayer queue and
+    /// restores playback position/state, for use by moveItem/replaceItem/addItem(at: 0).
+    ///
+    /// Deliberately does NOT go through setTracks(): setTracks() unconditionally tears down and
+    /// re-registers KVO/NotificationCenter observers for every track via addTrackObservers(),
+    /// which (a) re-fires RMXSTATUS_ITEM_ADDED for tracks that aren't new, contradicting the
+    /// "no playback interruption" contract of these APIs, and (b) would double-register KVO
+    /// observers on tracks that were never removed from the queue (removeAllTrackObservers() only
+    /// clears NotificationCenter observers, not KVO). Callers are responsible for registering/
+    /// removing observers for whichever single track actually changed identity.
     private func rebuildQueuePreservingCurrentPlayback() {
         let tracks = avQueuePlayer.queuedAudioTracks
         guard !tracks.isEmpty else {
@@ -235,7 +247,16 @@ final class RmxAudioPlayer: NSObject {
         let wasPlaying = avQueuePlayer.isPlaying
         let rate = avQueuePlayer.rate
 
-        setTracks(tracks, startIndex: currentIdx, startPosition: seekPos)
+        isReplacingItems = true
+        avQueuePlayer.replaceAllItems(with: tracks)
+        isReplacingItems = false
+
+        if !avQueuePlayer.queuedAudioTracks.isEmpty && currentIdx >= 0 {
+            avQueuePlayer.setCurrentIndex(currentIdx)
+        }
+        if seekPos > 0 {
+            seek(to: seekPos, isCommand: false)
+        }
 
         if wasPlaying {
             if rate > 0 {
@@ -1189,7 +1210,11 @@ final class RmxAudioPlayer: NSObject {
         ]
     }
 
-    func addTrackObservers(_ playerItem: AudioTrack?) {
+    /// Registers the KVO + NotificationCenter observers for a track, without emitting any status
+    /// event. Used both by addTrackObservers (a genuinely new track) and by callers that need to
+    /// re-point observers at a single swapped-in track (e.g. replaceItem) without re-announcing
+    /// every other still-current track in the queue.
+    private func registerTrackObservers(_ playerItem: AudioTrack?) {
         let options: NSKeyValueObservingOptions = [.old, .new]
         playerItem?.addObserver(self, forKeyPath: "status", options: options, context: nil)
         playerItem?.addObserver(self, forKeyPath: "duration", options: options, context: nil)
@@ -1201,7 +1226,10 @@ final class RmxAudioPlayer: NSObject {
         listener.addObserver(self, selector: #selector(playerItemDidReachEnd(_:)), name: .AVPlayerItemDidPlayToEndTime, object: playerItem)
         // Subscribe to the AVPlayerItem's PlaybackStalledNotification notification.
         listener.addObserver(self, selector: #selector(itemStalledPlaying(_:)), name: .AVPlayerItemPlaybackStalled, object: playerItem)
+    }
 
+    func addTrackObservers(_ playerItem: AudioTrack?) {
+        registerTrackObservers(playerItem)
         onStatus(.rmxstatus_ITEM_ADDED, trackId: playerItem?.trackId, param: playerItem?.toDict())
     }
 
