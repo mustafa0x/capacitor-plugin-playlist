@@ -4,6 +4,8 @@ Capacitor plugin for **Android**, **iOS**, and **Web** with native audio playlis
 
 Requires **Capacitor 8+** (peer dependency `@capacitor/core >= 8.0.0`).
 
+This repository keeps `main` aligned with upstream. Audited fork releases are maintained on `fork/main` and published as immutable version tags.
+
 ## Index
 
 1. [Features](#features)
@@ -99,12 +101,23 @@ Uses ExoMedia (ExoPlayer wrapper) with PlaylistCore for notification and MediaSe
 
 ### iOS
 
-Uses a customized AVQueuePlayer (`AVBidirectionalQueuePlayer`) for track-change feedback and continuous audio session between songs. Minimum iOS **18** (0.9.4+). Swift Package Manager supported (0.10.0+).
+Uses a customized AVQueuePlayer (`AVBidirectionalQueuePlayer`) for track-change feedback and continuous audio session between songs. Minimum iOS **15**. Swift Package Manager supported (0.10.0+).
 
 ## Installation
 
+### Maintained fork release
+
+Install the audited fork release from its immutable Git tag:
+
+```bash
+npm install github:mustafa0x/capacitor-plugin-playlist#v0.10.12
+npx cap sync
 ```
-npm i capacitor-plugin-playlist
+
+`fork/main` contains the maintained fork release line; `main` remains aligned with upstream. To install the upstream npm package instead:
+
+```bash
+npm install capacitor-plugin-playlist
 npx cap sync
 ```
 
@@ -130,18 +143,9 @@ Add to `angular.json` → architect → build → options → scripts:
 
 ### Android
 
-#### AndroidManifest.xml
+#### Manifest and application class
 
-```xml
-<uses-permission android:name="android.permission.WAKE_LOCK" />
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-<application>
-    <service android:enabled="true" android:exported="false"
-             android:foregroundServiceType="mediaPlayback"
-             android:name="org.dwbn.plugins.playlist.service.MediaService">
-    </service>
-</application>
-```
+The plugin library manifest contributes `MediaService` and the required wake-lock and foreground media-playback permissions through Android manifest merging. Do not duplicate those declarations in the host manifest.
 
 Keep your application's existing Android `Application` class. The legacy `org.dwbn.plugins.playlist.App` class remains available for compatibility, but it is no longer required.
 
