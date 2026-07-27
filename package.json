@@ -84,7 +84,9 @@
     "url": "https://github.com/phiamo/capacitor-plugin-playlist/issues"
   },
   "publishConfig": {
-    "@phiamo:registry": "https://npm.pkg.github.com"
+    "registry": "https://registry.npmjs.org/",
+    "access": "public",
+    "provenance": true
   },
   "overrides": {
     "@types/node": "^20.0.0"

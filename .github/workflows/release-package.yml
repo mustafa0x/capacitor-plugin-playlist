@@ -61,27 +61,27 @@ jobs:
             exit 1
           fi
 
-  publish-gpr:
+  publish-npm:
     needs: [validate-version]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
-      packages: write
       contents: read
+      id-token: write # Required for npm Trusted Publishing (OIDC)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          registry-url: https://npm.pkg.github.com/
-          cache: npm
+          # Node 24 ships npm >= 11.5.1 required for OIDC trusted publishing
+          node-version: 24
+          registry-url: https://registry.npmjs.org/
       - run: npm ci
+      # No NODE_AUTH_TOKEN: npm authenticates via GitHub OIDC against the
+      # Trusted Publisher configured on npmjs.com for this package.
       - run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   create-release:
-    needs: [publish-gpr]
+    needs: [publish-npm]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
