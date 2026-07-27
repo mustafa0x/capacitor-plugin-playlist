@@ -23,55 +23,18 @@ package org.dwbn.plugins.playlist.manager
 import android.content.Context
 import org.json.JSONObject
 
-class Options {
-    /**
-     * Wrapped JSON object.
-     */
-    // The original JSON object
-    val dict: JSONObject
+class Options @JvmOverloads constructor(
+    val context: Context,
+    val dict: JSONObject = JSONObject()
+) {
+    override fun toString(): String = dict.toString()
 
-    /**
-     * Application context.
-     */
-    // The application context
-    val context: Context
-
-    /**
-     * Constructor
-     *
-     * @param context The application context.
-     */
-    constructor(context: Context) {
-        this.context = context
-        dict = JSONObject()
-    }
-
-    /**
-     * Constructor
-     *
-     * @param context The application context.
-     * @param options The options dict map.
-     */
-    constructor(context: Context, options: JSONObject) {
-        this.context = context
-        dict = options
-    }
-
-    /**
-     * JSON object as string.
-     */
-    override fun toString(): String {
-        return dict.toString()
-    }
-
-    /**
-     * icon resource ID for the local notification.
-     */
     val icon: String
-        get() = (dict.opt("icon") as? String)?.takeIf { it.isNotBlank() } ?: DEFAULT_ICON
+        get() = (dict.opt("icon") as? String)
+            ?.takeIf { it.isNotBlank() }
+            ?: DEFAULT_ICON
 
     companion object {
-        // Default icon path
         private const val DEFAULT_ICON = "ic_notification_icon"
     }
 }
