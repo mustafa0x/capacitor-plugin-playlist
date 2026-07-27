@@ -1,0 +1,317 @@
+name: Apply direct fork cleanup
+
+on:
+  push:
+    branches:
+      - chore/fork-release-surface
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fork/main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Apply release documentation and Web cleanup
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected one match, found {count}")
+              return text.replace(old, new, 1)
+
+          readme_path = Path("README.md")
+          readme = readme_path.read_text()
+          readme = replace_once(
+              readme,
+              "Requires **Capacitor 8+** (peer dependency `@capacitor/core >= 8.0.0`).\n",
+              "Requires **Capacitor 8+** (peer dependency `@capacitor/core >= 8.0.0`).\n\n"
+              "This repository keeps `main` aligned with upstream. Audited fork releases are maintained on "
+              "`fork/main` and published as immutable version tags.\n",
+              "fork release note",
+          )
+          readme = replace_once(
+              readme,
+              "Uses a customized AVQueuePlayer (`AVBidirectionalQueuePlayer`) for track-change feedback and continuous audio session between songs. Minimum iOS **18** (0.9.4+). Swift Package Manager supported (0.10.0+).",
+              "Uses a customized AVQueuePlayer (`AVBidirectionalQueuePlayer`) for track-change feedback and continuous audio session between songs. Minimum iOS **15**. Swift Package Manager supported (0.10.0+).",
+              "iOS minimum",
+          )
+          readme = replace_once(
+              readme,
+              """## Installation
+
+```
+npm i capacitor-plugin-playlist
+npx cap sync
+```
+""",
+              """## Installation
+
+### Maintained fork release
+
+Install the audited fork release from its immutable Git tag:
+
+```bash
+npm install github:mustafa0x/capacitor-plugin-playlist#v0.10.12
+npx cap sync
+```
+
+`fork/main` contains the maintained fork release line; `main` remains aligned with upstream. To install the upstream npm package instead:
+
+```bash
+npm install capacitor-plugin-playlist
+npx cap sync
+```
+""",
+              "installation",
+          )
+          readme = replace_once(
+              readme,
+              """### Android
+
+#### AndroidManifest.xml
+
+```xml
+<uses-permission android:name="android.permission.WAKE_LOCK" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+<application>
+    <service android:enabled="true" android:exported="false"
+             android:foregroundServiceType="mediaPlayback"
+             android:name="org.dwbn.plugins.playlist.service.MediaService">
+    </service>
+</application>
+```
+
+Keep your application's existing Android `Application` class. The legacy `org.dwbn.plugins.playlist.App` class remains available for compatibility, but it is no longer required.
+""",
+              """### Android
+
+#### Manifest and application class
+
+The plugin library manifest contributes `MediaService` and the required wake-lock and foreground media-playback permissions through Android manifest merging. Do not duplicate those declarations in the host manifest.
+
+Keep your application's existing Android `Application` class. The legacy `org.dwbn.plugins.playlist.App` class remains available for compatibility, but it is no longer required.
+""",
+              "Android manifest guidance",
+          )
+          readme_path.write_text(readme)
+
+          web_path = Path("src/web.ts")
+          web = web_path.read_text()
+          web = replace_once(
+              web,
+              """    async clearAllItems(): Promise<void> {
+        await this.release();
+        this.playlistItems = [];
+        this.currentTrack = null;
+        this.updateStatus(RmxAudioStatusMessage.RMXSTATUS_PLAYLIST_CLEARED, null, "INVALID");
+        return Promise.resolve();
+    }
+""",
+              """    async clearAllItems(): Promise<void> {
+        await this.release();
+        this.playlistItems = [];
+        this.currentTrack = null;
+        this.updateStatus(RmxAudioStatusMessage.RMXSTATUS_PLAYLIST_CLEARED, null, "INVALID");
+    }
+""",
+              "clearAllItems",
+          )
+          web = replace_once(
+              web,
+              """    async initialize(): Promise<void> {
+        this.updateStatus(RmxAudioStatusMessage.RMXSTATUS_INIT, null, "INVALID");
+        return Promise.resolve();
+    }
+""",
+              """    async initialize(): Promise<void> {
+        this.updateStatus(RmxAudioStatusMessage.RMXSTATUS_INIT, null, "INVALID");
+    }
+""",
+              "initialize",
+          )
+          web = replace_once(
+              web,
+              """    async create(): Promise<void> {
+        this.audio = document.createElement('audio');
+        this.audio.crossOrigin = 'anonymous';
+        this.audio.preload = 'metadata';
+        this.audio.controls = true;
+        this.audio.autoplay = false;
+        return Promise.resolve();
+    }
+""",
+              """    async create(): Promise<void> {
+        this.audio = document.createElement('audio');
+        this.audio.crossOrigin = 'anonymous';
+        this.audio.preload = 'metadata';
+        this.audio.controls = true;
+        this.audio.autoplay = false;
+    }
+""",
+              "create",
+          )
+          web = replace_once(
+              web,
+              """    selectTrackById(options: SelectByIdOptions): Promise<void> {
+        for (const item of this.playlistItems) {
+            if (item.trackId === options.id) {
+                return this.setCurrent(item, options.position);
+            }
+        }
+        return Promise.reject();
+    }
+
+    selectTrackByIndex(options: SelectByIndexOptions): Promise<void> {
+        let index = 0;
+        for (const item of this.playlistItems) {
+            if (index === options.index) {
+                return this.setCurrent(item, options.position);
+            }
+            index++;
+        }
+        return Promise.reject();
+    }
+""",
+              """    selectTrackById(options: SelectByIdOptions): Promise<void> {
+        const track = this.playlistItems.find(item => item.trackId === options.id);
+        return track ? this.setCurrent(track, options.position) : Promise.reject();
+    }
+
+    selectTrackByIndex(options: SelectByIndexOptions): Promise<void> {
+        const track = Number.isInteger(options.index)
+            ? this.playlistItems[options.index]
+            : undefined;
+        return track ? this.setCurrent(track, options.position) : Promise.reject();
+    }
+""",
+              "selection lookup",
+          )
+          web = replace_once(
+              web,
+              """    async prepareForVideoHandoff(): Promise<void> {
+        this.lastKnownHandoffPosition = this.audio?.currentTime ?? 0;
+        await this.pause();
+        return Promise.resolve();
+    }
+
+    async resumeAfterVideoHandoff(options: { position: number }): Promise<{ resumed: boolean }> {
+        this.lastKnownHandoffPosition = options.position;
+        return Promise.resolve({ resumed: false });
+    }
+
+    async getLastKnownPosition(): Promise<{ position: number }> {
+        return Promise.resolve({ position: this.lastKnownHandoffPosition });
+    }
+""",
+              """    async prepareForVideoHandoff(): Promise<void> {
+        this.lastKnownHandoffPosition = this.audio?.currentTime ?? 0;
+        await this.pause();
+    }
+
+    async resumeAfterVideoHandoff(options: { position: number }): Promise<{ resumed: boolean }> {
+        this.lastKnownHandoffPosition = options.position;
+        return { resumed: false };
+    }
+
+    async getLastKnownPosition(): Promise<{ position: number }> {
+        return { position: this.lastKnownHandoffPosition };
+    }
+""",
+              "handoff promises",
+          )
+          web = replace_once(
+              web,
+              """          }
+        return Promise.resolve();
+    }
+
+    // register events
+    /*
+      private registerHlsListeners(hls: Hls, position?: number) {
+        hls.on(Hls.Events.MANIFEST_PARSED, async () => {
+          this.notifyListeners('status', {
+            action: "status",
+            status: {
+              msgType: RmxAudioStatusMessage.RMXSTATUS_CANPLAY,
+              trackId: this.getCurrentTrackId(),
+              value: this.getCurrentTrackStatus('loading'),
+            }
+          })
+          if(position) {
+            await this.seekTo({position});
+          }
+        });
+      }*/
+    registerHtmlListeners(position?: number) {
+""",
+              """          }
+    }
+
+    registerHtmlListeners(position?: number) {
+""",
+              "media handler and dead HLS block",
+          )
+          web = replace_once(
+              web,
+              "            let lastTrackId: any, lastPosition: any;",
+              "            let lastTrackId: string | undefined;\n            let lastPosition: number | undefined;",
+              "timeupdate cache types",
+          )
+          web = replace_once(
+              web,
+              """    protected getCurrentTrackId() {
+        if (this.currentTrack) {
+            return this.currentTrack.trackId;
+        }
+        return 'INVALID';
+    }
+""",
+              """    protected getCurrentTrackId() {
+        return this.currentTrack?.trackId ?? 'INVALID';
+    }
+""",
+              "current track id",
+          )
+          web = replace_once(
+              web,
+              "\n            //this.registerHlsListeners(hls, position);",
+              "",
+              "dead HLS call",
+          )
+          web = replace_once(
+              web,
+              """        if (wasPlaying || forceAutoplay) {
+            //this.play();
+            this.audio!.addEventListener('canplay', () => {
+""",
+              """        if (wasPlaying || forceAutoplay) {
+            this.audio!.addEventListener('canplay', () => {
+""",
+              "dead play call",
+          )
+          web_path.write_text(web)
+          PY
+          git diff --check
+      - run: npm ci
+      - run: npm run verify:web
+      - name: Commit directly to fork/main
+        run: |
+          git config user.name "Fork Maintenance"
+          git config user.email "actions@users.noreply.github.com"
+          git add README.md
+          git commit -m "docs: clarify the fork release surface"
+          git add src/web.ts
+          git commit -m "cleanup(web): remove dead runtime cruft"
+          git push origin HEAD:refs/heads/fork/main
