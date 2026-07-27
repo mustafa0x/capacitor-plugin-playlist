@@ -49,7 +49,7 @@ Requires **Capacitor 8+** (peer dependency `@capacitor/core >= 8.0.0`).
 
 ### Background audio
 
-- Android: foreground media service with `WAKE_LOCK` and `FOREGROUND_SERVICE_MEDIA_PLAYBACK` (Android 14+)
+- Android: foreground media service with `WAKE_LOCK`, `FOREGROUND_SERVICE`, and `FOREGROUND_SERVICE_MEDIA_PLAYBACK` (Android 14+)
 - iOS: `UIBackgroundModes` → `audio`
 - Position events throttled while WebView is backgrounded; one live snapshot emitted on foreground resume (0.9.1+)
 
@@ -132,18 +132,16 @@ Add to `angular.json` → architect → build → options → scripts:
 
 #### AndroidManifest.xml
 
-```xml
-<uses-permission android:name="android.permission.WAKE_LOCK" />
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-<application>
-    <service android:enabled="true" android:exported="false"
-             android:foregroundServiceType="mediaPlayback"
-             android:name="org.dwbn.plugins.playlist.service.MediaService">
-    </service>
-</application>
-```
+From **0.11.0**, the plugin library manifest merges the media playback service and required permissions into your app automatically:
 
-Keep your application's existing Android `Application` class. The legacy `org.dwbn.plugins.playlist.App` class remains available for compatibility, but it is no longer required.
+- `android.permission.WAKE_LOCK`
+- `android.permission.FOREGROUND_SERVICE`
+- `android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK`
+- `org.dwbn.plugins.playlist.service.MediaService` (`exported="false"`, `foregroundServiceType="mediaPlayback"`)
+
+After upgrading, run `npx cap sync android`. You do **not** need to copy these entries into your host `AndroidManifest.xml` unless you want to override plugin defaults.
+
+Keep your application's existing Android `Application` class. The legacy `org.dwbn.plugins.playlist.App` class remains available for compatibility, but it is no longer required — remove `android:name="org.dwbn.plugins.playlist.App"` from `<application>` when upgrading from older setups.
 
 #### Gradle 9+
 

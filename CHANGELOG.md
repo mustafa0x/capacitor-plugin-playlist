@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.0
+
+- Fix (Android): Share playlist manager through `PlaylistRuntime` using the host application context; host apps no longer need `android:name="org.dwbn.plugins.playlist.App"` (legacy `App` class kept as deprecated shim).
+- Fix (Android): Declare `MediaService`, `WAKE_LOCK`, `FOREGROUND_SERVICE`, and `FOREGROUND_SERVICE_MEDIA_PLAYBACK` in the plugin library manifest for automatic manifest merge.
+
 ## 0.10.10
 
 - Fix (web): `release()` clears `currentTrack` and resets `lastState` so resume after video (or any `release()`) cannot leave the plugin in a “current track but no `<audio>` element” state where `play()` / `playTrackById` silently no-op.
