@@ -34,7 +34,13 @@ jobs:
           distribution: temurin
           java-version: 21
           cache: gradle
-      - run: npm run verify:android
+      - name: Verify Android
+        run: |
+          set +e
+          npm run verify:android > android.log 2>&1
+          status=$?
+          tail -n 120 android.log
+          exit "$status"
 
   ios:
     runs-on: macos-latest
