@@ -4,6 +4,7 @@ import com.devbrackets.android.playlistcore.annotation.SupportedMediaType
 import com.devbrackets.android.playlistcore.api.PlaylistItem
 import com.devbrackets.android.playlistcore.manager.BasePlaylistManager
 import org.json.JSONObject
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
 
 class AudioTrack(private val config: JSONObject) : PlaylistItem {
@@ -42,8 +43,8 @@ class AudioTrack(private val config: JSONObject) : PlaylistItem {
     val isStream: Boolean
         get() = config.opt("isStream") as? Boolean ?: false
 
-    val trackId: String?
-        get() = stringValue("trackId")?.takeIf { it.isNotEmpty() }
+    val trackId: String = stringValue("trackId")?.takeIf { it.isNotEmpty() }
+        ?: UUID.randomUUID().toString()
 
     override val downloaded = false
     override val downloadedMediaUri: String? = null
@@ -53,6 +54,9 @@ class AudioTrack(private val config: JSONObject) : PlaylistItem {
 
     override val mediaUrl: String
         get() = stringValue("assetUrl").orEmpty()
+
+    internal val hasPlayableAsset: Boolean
+        get() = mediaUrl.isNotBlank()
 
     override val thumbnailUrl: String?
         get() = stringValue("albumArt")?.takeIf { it.isNotEmpty() }

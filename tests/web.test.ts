@@ -39,6 +39,65 @@ class TestPlaylistWeb extends PlaylistWeb {
   }
 }
 
+class FakeAudio {
+  autoplay = false;
+  controls = false;
+  crossOrigin = '';
+  currentTime = 0;
+  duration = 30;
+  paused = true;
+  playbackRate = 1;
+  preload = '';
+  src = '';
+  volume = 1;
+  playCalls = 0;
+  private listeners = new Map<string, Set<() => void>>();
+
+  addEventListener(type: string, listener: () => void): void {
+    const listeners = this.listeners.get(type) ?? new Set();
+    listeners.add(listener);
+    this.listeners.set(type, listeners);
+  }
+
+  removeEventListener(type: string, listener: () => void): void {
+    this.listeners.get(type)?.delete(listener);
+  }
+
+  async play(): Promise<void> {
+    this.playCalls++;
+    this.paused = false;
+    this.emit('playing');
+  }
+
+  pause(): void {
+    this.paused = true;
+    this.emit('pause');
+  }
+
+  emit(type: string): void {
+    for (const listener of [...(this.listeners.get(type) ?? [])]) listener();
+  }
+}
+
+class LifecyclePlaylistWeb extends PlaylistWeb {
+  get currentTrackId(): string | undefined {
+    return this.currentTrack?.trackId;
+  }
+}
+
+const installAudioDocument = (): FakeAudio[] => {
+  const audios: FakeAudio[] = [];
+  vi.stubGlobal('navigator', {});
+  vi.stubGlobal('document', {
+    createElement: vi.fn(() => {
+      const audio = new FakeAudio();
+      audios.push(audio);
+      return audio;
+    }),
+  });
+  return audios;
+};
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -176,5 +235,89 @@ describe('PlaylistWeb Media Session lifecycle', () => {
       ['nexttrack', null],
       ['previoustrack', null],
     ]);
+  });
+});
+
+describe('PlaylistWeb playback lifecycle contracts', () => {
+  it('loads the requested track and position without violating paused intent', async () => {
+    const audios = installAudioDocument();
+    const player = new LifecyclePlaylistWeb();
+
+    await player.setPlaylistItems({
+      items: [track('a'), track('b')],
+      options: { startPaused: true, playFromId: 'b', playFromPosition: 4 },
+    });
+
+    expect(player.currentTrackId).toBe('b');
+    expect(audios[0].paused).toBe(true);
+    audios[0].emit('canplay');
+    expect(audios[0].currentTime).toBe(4);
+    expect(audios[0].paused).toBe(true);
+  });
+
+  it('starts immediately when startPaused is omitted', async () => {
+    const audios = installAudioDocument();
+    const player = new LifecyclePlaylistWeb();
+
+    await player.setPlaylistItems({ items: [track('a')], options: {} });
+
+    expect(audios[0].playCalls).toBe(1);
+    expect(audios[0].paused).toBe(false);
+  });
+
+  it('advances after natural completion and clears state at playlist end', async () => {
+    const audios = installAudioDocument();
+    const player = new LifecyclePlaylistWeb();
+    const statuses: { msgType: RmxAudioStatusMessage; value: unknown }[] = [];
+    await player.addListener('status', ({ status }) => statuses.push(status));
+    await player.setPlaylistItems({ items: [track('a'), track('b')], options: {} });
+
+    audios[0].emit('ended');
+    await vi.waitFor(() => expect(audios).toHaveLength(2));
+    audios[1].emit('canplay');
+    expect(player.currentTrackId).toBe('b');
+    expect(audios[1].paused).toBe(false);
+
+    audios[1].emit('ended');
+    await vi.waitFor(() => expect(player.currentTrackId).toBeUndefined());
+
+    expect(statuses.map(({ msgType }) => msgType)).toContain(RmxAudioStatusMessage.RMXSTATUS_PLAYLIST_COMPLETED);
+    expect(statuses).toContainEqual(
+      expect.objectContaining({
+        msgType: RmxAudioStatusMessage.RMXSTATUS_TRACK_CHANGED,
+        value: expect.objectContaining({ currentItem: null, currentIndex: -1 }),
+      }),
+    );
+  });
+
+  it('loops the terminal track and resumes only when media is ready', async () => {
+    const audios = installAudioDocument();
+    const player = new LifecyclePlaylistWeb();
+    await player.setLoop({ loop: true });
+    await player.setPlaylistItems({ items: [track('a')], options: {} });
+
+    audios[0].emit('ended');
+    await vi.waitFor(() => expect(audios).toHaveLength(2));
+    expect(audios[1].paused).toBe(true);
+    audios[1].emit('canplay');
+
+    expect(player.currentTrackId).toBe('a');
+    expect(audios[1].playCalls).toBe(1);
+    expect(audios[1].paused).toBe(false);
+  });
+
+  it('captures video handoff position and remains paused on web resume', async () => {
+    const audios = installAudioDocument();
+    const player = new LifecyclePlaylistWeb();
+    await player.setPlaylistItems({ items: [track('a')], options: {} });
+    audios[0].currentTime = 7.5;
+
+    await player.prepareForVideoHandoff();
+    expect(await player.getLastKnownPosition()).toEqual({ position: 7.5 });
+    expect(audios[0].paused).toBe(true);
+
+    await expect(player.resumeAfterVideoHandoff({ position: 9 })).resolves.toEqual({ resumed: false });
+    expect(await player.getLastKnownPosition()).toEqual({ position: 9 });
+    expect(audios[0].paused).toBe(true);
   });
 });

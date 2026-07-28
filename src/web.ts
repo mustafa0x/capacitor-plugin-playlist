@@ -162,21 +162,25 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
                 await this.setCurrent(nextTrack);
             } else {
                 await this.release();
-                this.currentTrack = null;
-                this.updateStatus(
-                    RmxAudioStatusMessage.RMXSTATUS_TRACK_CHANGED,
-                    {
-                        currentItem: null,
-                        currentIndex: -1,
-                        isAtEnd: true,
-                        isAtBeginning: true,
-                        hasNext: false,
-                        hasPrevious: false
-                    },
-                    "NONE"
-                );
+                this.publishEmptyCurrentTrack();
             }
         }
+    }
+
+    private publishEmptyCurrentTrack(): void {
+        this.currentTrack = null;
+        this.updateStatus(
+            RmxAudioStatusMessage.RMXSTATUS_TRACK_CHANGED,
+            {
+                currentItem: null,
+                currentIndex: -1,
+                isAtEnd: true,
+                isAtBeginning: true,
+                hasNext: false,
+                hasPrevious: false
+            },
+            "NONE"
+        );
     }
 
     seekTo(options: SeekToOptions): Promise<void> {
@@ -357,7 +361,7 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
                 this.updateStatus(RmxAudioStatusMessage.RMXSTATUS_ERROR, this.getCurrentTrackStatus('error'));
             });
 
-            this.audio.addEventListener('ended', () => {
+            this.audio.addEventListener('ended', async () => {
                 this.updateStatus(RmxAudioStatusMessage.RMXSTATUS_COMPLETED, this.getCurrentTrackStatus('stopped'));
                 const currentTrackIndex = this.getCurrentIndex();
                 if (currentTrackIndex < 0) {
@@ -366,15 +370,17 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
 
                 const nextTrack = this.playlistItems[currentTrackIndex + 1];
                 if (nextTrack) {
-                    this.setCurrent(nextTrack, undefined, true);
+                    await this.setCurrent(nextTrack, undefined, true);
                     return;
                 }
 
                 if (this.loop) {
-                    this.setCurrent(this.playlistItems[0], undefined, true);
+                    await this.setCurrent(this.playlistItems[0], undefined, true);
                     return;
                 }
 
+                await this.release();
+                this.publishEmptyCurrentTrack();
                 this.updateStatus(RmxAudioStatusMessage.RMXSTATUS_PLAYLIST_COMPLETED, this.getCurrentTrackStatus('stopped'));
             });
 

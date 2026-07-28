@@ -19,8 +19,6 @@ final class AudioTrack: AVPlayerItem {
     class func initWithDictionary(_ trackInfo: [String : Any]?) -> AudioTrack? {
         guard
             let trackInfo = trackInfo,
-            let trackId = trackInfo["trackId"] as? String,
-            !trackId.isEmpty,
             let assetUrlString = trackInfo["assetUrl"] as? String,
             !assetUrlString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
             let assetUrl = URL(string: assetUrlString)
@@ -38,7 +36,9 @@ final class AudioTrack: AVPlayerItem {
         let albumArt = trackInfo["albumArt"] as? String
         track.albumArt = albumArt != nil ? URL(string: albumArt!) : nil
         
-        track.trackId = trackId
+        track.trackId = (trackInfo["trackId"] as? String)?.isEmpty == false
+            ? trackInfo["trackId"] as? String
+            : UUID().uuidString
         track.assetUrl = assetUrl
         track.artist = trackInfo["artist"] as? String
         track.album = trackInfo["album"] as? String

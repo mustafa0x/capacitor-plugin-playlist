@@ -25,8 +25,10 @@ const itemStatusChangeTypes = [
     RmxAudioStatusMessage.RMXSTATUS_CANPLAY,
     RmxAudioStatusMessage.RMXSTATUS_LOADING,
     RmxAudioStatusMessage.RMXSTATUS_LOADED,
+    RmxAudioStatusMessage.RMXSTATUS_PLAYING,
     RmxAudioStatusMessage.RMXSTATUS_PAUSE,
     RmxAudioStatusMessage.RMXSTATUS_COMPLETED,
+    RmxAudioStatusMessage.RMXSTATUS_STOPPED,
     RmxAudioStatusMessage.RMXSTATUS_ERROR,
 ];
 

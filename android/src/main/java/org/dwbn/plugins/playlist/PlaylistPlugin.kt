@@ -79,13 +79,11 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
             val trackItems: ArrayList<AudioTrack> = getTrackItems(items)
             audioPlayerImpl!!.playlistManager.setAllItems(trackItems, options)
             for (playerItem in trackItems) {
-                if (playerItem.trackId != null) {
-                    onStatus(
-                        RmxAudioStatusMessage.RMXSTATUS_ITEM_ADDED,
-                        playerItem.trackId,
-                        playerItem.toDict()
-                    )
-                }
+                onStatus(
+                    RmxAudioStatusMessage.RMXSTATUS_ITEM_ADDED,
+                    playerItem.trackId,
+                    playerItem.toDict()
+                )
             }
 
             call.resolve()
@@ -101,7 +99,7 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
             audioPlayerImpl!!.getPlaylistManager().addItem(playerItem)
 
 
-            if (playerItem?.trackId != null) {
+            if (playerItem != null) {
                 onStatus(
                     RmxAudioStatusMessage.RMXSTATUS_ITEM_ADDED,
                     playerItem.trackId,
@@ -121,13 +119,11 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
             audioPlayerImpl!!.playlistManager.addAllItems(trackItems)
 
             for (playerItem in trackItems) {
-                if (playerItem.trackId != null) {
-                    onStatus(
-                        RmxAudioStatusMessage.RMXSTATUS_ITEM_ADDED,
-                        playerItem.trackId,
-                        playerItem.toDict()
-                    )
-                }
+                onStatus(
+                    RmxAudioStatusMessage.RMXSTATUS_ITEM_ADDED,
+                    playerItem.trackId,
+                    playerItem.toDict()
+                )
             }
             call.resolve()
             Log.i(TAG, "addAllItems")
@@ -472,7 +468,7 @@ public class PlaylistPlugin : Plugin(), OnStatusReportListener {
     private fun getTrackItem(item: JSONObject?): AudioTrack? {
         if (item != null) {
             val track = AudioTrack(item)
-            return if (track.trackId != null) {
+            return if (track.hasPlayableAsset) {
                 track
             } else null
         }
