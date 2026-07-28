@@ -17,6 +17,7 @@
     "verify": "npm run verify:ios && npm run verify:android && npm run verify:web",
     "verify:ios": "scripts/verify-ios.sh",
     "verify:android": "cd android && ./gradlew clean build test && cd ..",
+    "verify:android:device": "cd android && ./gradlew connectedDebugAndroidTest && cd ..",
     "verify:web": "npm run build && npm run test:web",
     "test:web": "vitest run tests",
     "lint": "npm run eslint && npm run prettier -- --check && npm run swiftlint -- lint",

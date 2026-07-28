@@ -13,7 +13,10 @@ The durable suite checks observable behavior, not merely successful method calls
 | Release and repeated initialization | `web.test.ts` | `PluginTests` | Device coverage pending |
 | Video handoff state | `web.test.ts` | `PluginTests` | Device coverage pending |
 | Background bridge event policy | N/A | `PluginTests` | `StatusBridgePolicyTest` |
+| Merged media service manifest | N/A | N/A | `PlaylistDeviceContractTest` |
 
 `npm run verify:web`, `npm run verify:ios`, and `npm run verify:android` own these tests. The iOS verification command builds for a generic device and then runs XCTest on an available iPhone simulator.
 
-Real-device or emulator coverage is still required for audio focus, background playback, remote controls, interruptions, Android services, live streams, and native natural completion.
+`npm run verify:android:device` additionally runs Android instrumentation when an emulator or device is attached.
+
+Real-device or emulator coverage is still required for audible Android playback, audio focus, background playback, remote controls, interruptions, live streams, and native natural completion.
