@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.11.2
+
+- Fix (Android): Separate playlist identity from track ids so colliding public `trackId` values do not break setup, playback, selection, or removal ([#139](https://github.com/phiamo/capacitor-plugin-playlist/pull/139)).
+- Fix (Android): Retain playback position when replacing the playlist; preserve explicit `playFromPosition` (including zero) and otherwise keep current progress ([#140](https://github.com/phiamo/capacitor-plugin-playlist/pull/140)).
+- Chore (CI): Upgrade GitHub Actions to v5 and Node.js 24.
+
 ## 0.11.1
 
 - Feat: `addItem({ item, index? })` — insert at a 0-based index without interrupting playback ([#80](https://github.com/phiamo/capacitor-plugin-playlist/issues/80)).
