@@ -110,7 +110,7 @@ Uses a customized AVQueuePlayer (`AVBidirectionalQueuePlayer`) for track-change 
 Install the audited fork release from its immutable tarball:
 
 ```bash
-npm install https://github.com/mustafa0x/capacitor-plugin-playlist/releases/download/v0.10.12/capacitor-plugin-playlist-0.10.12.tgz
+npm install https://github.com/mustafa0x/capacitor-plugin-playlist/releases/download/v0.10.13/capacitor-plugin-playlist-0.10.13.tgz
 npx cap sync
 ```
 

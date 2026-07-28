@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.13
+
+- iOS: persist the selected playback rate across delayed readiness, pause/play, track changes, interruptions, and playlist looping without starting paused playback.
+- Web: retain playback rate when it is configured before an audio element exists and preserve it when zero pauses playback.
+
 ## 0.10.12
 
 This fork release consolidates the audited fix set built from upstream 0.10.9.
