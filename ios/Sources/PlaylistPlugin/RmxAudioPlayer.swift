@@ -49,6 +49,7 @@ final class RmxAudioPlayer: NSObject {
     private var kvoObserversRegistered = false
     private var playbackRequested = false
     private var commandCenterRegistered = false
+    private var preferredPlaybackRate: Float = 1
     private var resetStreamOnPause = true
     private var updatedNowPlayingInfo: [String : Any]?
     private let nowPlayingInfoQueue = DispatchQueue(label: "RMXAudioPlayerNowPlayingQueue")
@@ -232,9 +233,19 @@ final class RmxAudioPlayer: NSObject {
     }
 
     func setPlaybackRate(_ rate: Float) {
+        if rate == 0 {
+            pauseCommand(false)
+            return
+        }
+
         avQueuePlayer.recordTransportIntent()
-        playbackRequested = rate != 0
-        avQueuePlayer.rate = rate
+        preferredPlaybackRate = rate
+        if #available(iOS 16.0, *) {
+            avQueuePlayer.defaultRate = rate
+        }
+        if avQueuePlayer.timeControlStatus != .paused {
+            avQueuePlayer.rate = rate
+        }
     }
 
     // Not supporten in IOS ?https://developer.apple.com/documentation/avfoundation/avplayer/1390127-volume
@@ -326,7 +337,16 @@ final class RmxAudioPlayer: NSObject {
 
             print( "music-controls-play ")
         
-        avQueuePlayer.play()
+        startPlayback()
+    }
+
+    private func startPlayback() {
+        if #available(iOS 16.0, *) {
+            avQueuePlayer.defaultRate = preferredPlaybackRate
+            avQueuePlayer.play()
+        } else {
+            avQueuePlayer.rate = preferredPlaybackRate
+        }
     }
 
     func pauseCommand(_ isCommand: Bool) {
@@ -547,7 +567,7 @@ final class RmxAudioPlayer: NSObject {
         if loop && avQueuePlayer.isAtEnd {
             print("Last music in playlist play ended, loop back.")
             avQueuePlayer.setCurrentIndex(0)
-            avQueuePlayer.play()
+            startPlayback()
         }
     }
 

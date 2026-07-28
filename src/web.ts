@@ -29,6 +29,7 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
     protected currentTrack: AudioTrack | null = null;
     protected lastState = 'stopped';
     private hlsInstance: any;
+    private playbackRate = 1;
 
     addAllItems(options: AddAllItemOptions): Promise<void> {
         const tracks = validateTracks(options.items);
@@ -109,6 +110,7 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
         this.audio.preload = 'metadata';
         this.audio.controls = true;
         this.audio.autoplay = false;
+        this.audio.playbackRate = this.playbackRate;
     }
 
     removeItem(options: RemoveItemOptions): Promise<void> {
@@ -270,14 +272,14 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
     }
 
     setPlaybackRate(options: SetPlaybackRateOptions): Promise<void> {
-        if (this.audio) {
-            if (options.rate === 0) {
-                return this.pause();
-            }
-            this.audio.playbackRate = options.rate;
-            return Promise.resolve();
+        if (options.rate === 0) {
+            return this.pause();
         }
-        return Promise.reject();
+        this.playbackRate = options.rate;
+        if (this.audio) {
+            this.audio.playbackRate = options.rate;
+        }
+        return Promise.resolve();
     }
 
     protected lastKnownHandoffPosition = 0;

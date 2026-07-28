@@ -20,4 +20,27 @@ class PluginTests: XCTestCase {
         player.setWebViewActive(false)
         XCTAssertTrue(player.shouldEmitStatusToBridge(.rmxstatus_PLAYING))
     }
+
+    func testPlaybackRateCanBeSetBeforeLoadingWithoutStartingPlayback() {
+        let player = RmxAudioPlayer()
+
+        player.setPlaybackRate(2)
+
+        XCTAssertEqual(player.avQueuePlayer.rate, 0)
+        if #available(iOS 16.0, *) {
+            XCTAssertEqual(player.avQueuePlayer.defaultRate, 2)
+        }
+    }
+
+    func testZeroPlaybackRateKeepsPreferredRate() {
+        let player = RmxAudioPlayer()
+
+        player.setPlaybackRate(2)
+        player.setPlaybackRate(0)
+
+        XCTAssertEqual(player.avQueuePlayer.rate, 0)
+        if #available(iOS 16.0, *) {
+            XCTAssertEqual(player.avQueuePlayer.defaultRate, 2)
+        }
+    }
 }

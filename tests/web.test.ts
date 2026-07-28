@@ -84,6 +84,30 @@ describe('PlaylistWeb transitions', () => {
     expect(audio.playbackRate).toBe(1);
   });
 
+  it('retains playback rate before creating an audio element', async () => {
+    const audio = { playbackRate: 1 } as unknown as HTMLAudioElement;
+    vi.stubGlobal('document', { createElement: vi.fn(() => audio) });
+    const player = new TestPlaylistWeb();
+
+    await player.setPlaybackRate({ rate: 2 });
+    await player.create();
+
+    expect(audio.playbackRate).toBe(2);
+  });
+
+  it('keeps the preferred playback rate after pausing with zero', async () => {
+    const audio = { pause: vi.fn(), playbackRate: 1 } as unknown as HTMLAudioElement;
+    const player = new TestPlaylistWeb();
+    player.setAudio(audio);
+
+    await player.setPlaybackRate({ rate: 2 });
+    await player.setPlaybackRate({ rate: 0 });
+    vi.stubGlobal('document', { createElement: vi.fn(() => audio) });
+    await player.create();
+
+    expect(audio.playbackRate).toBe(2);
+  });
+
   it('returns playlist snapshots and emits one event per batch item', async () => {
     const player = new TestPlaylistWeb();
     const statuses: { msgType: RmxAudioStatusMessage; trackId: string }[] = [];
