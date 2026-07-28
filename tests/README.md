@@ -9,7 +9,7 @@ The durable suite checks observable behavior, not merely successful method calls
 | Paused loading, selection, position, and clear | `web.test.ts` | `PluginTests` | Device coverage pending |
 | Stable batch and terminal removal | `web.test.ts` | `PluginTests` | `PlaylistRemovalPolicyTest` |
 | Rate before load and zero-rate retention | `web.test.ts` | Measured local-audio XCTest | Device coverage pending |
-| Natural completion and loop | `web.test.ts` | Device coverage pending | Device coverage pending |
+| Natural completion and loop | `web.test.ts` | Measured local-audio XCTest | Host-app coverage required |
 | Release and repeated initialization | `web.test.ts` | `PluginTests` | Device coverage pending |
 | Video handoff state | `web.test.ts` | `PluginTests` | Device coverage pending |
 | Background bridge event policy | N/A | `PluginTests` | `StatusBridgePolicyTest` |

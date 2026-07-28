@@ -268,14 +268,18 @@ final class RmxAudioPlayer: NSObject {
     /// These are basically just passing through to the core functionality of the queue and this player.
     ///
     /// These functions don't really do anything interesting by themselves.
-    func selectTrack(index: Int) throws {
+    func selectTrack(index: Int, positionTime: Float? = nil) throws {
         guard index >= 0 && index < avQueuePlayer.queuedAudioTracks.count else {
             throw RmxAudioPlayerError.indexOutOfPlaylistBounds
         }
-        avQueuePlayer.setCurrentIndex(index)
+        avQueuePlayer.recordTransportIntent()
+        avQueuePlayer.setCurrentIndex(index) { [weak self] finished in
+            guard finished, let positionTime = positionTime else { return }
+            self?.seek(to: positionTime, isCommand: false)
+        }
     }
 
-    func selectTrack(id: String) throws {
+    func selectTrack(id: String, positionTime: Float? = nil) throws {
         guard !avQueuePlayer.queuedAudioTracks.isEmpty else {
             throw RmxAudioPlayerError.queueEmpty
         }
@@ -286,7 +290,7 @@ final class RmxAudioPlayer: NSObject {
             throw RmxAudioPlayerError.trackIdNotFound
         }
 
-        avQueuePlayer.setCurrentIndex(index)
+        try selectTrack(index: index, positionTime: positionTime)
     }
 
     func removeItem(_ index: Int) throws {
@@ -557,17 +561,27 @@ final class RmxAudioPlayer: NSObject {
 
         let trackStatus = getStatusItem(playerItem)
         onStatus(.rmxstatus_COMPLETED, trackId: playerItem?.trackId, param: trackStatus)
-        if avQueuePlayer.isAtEnd {
-            if !loop {
-                playbackRequested = false
-            }
+        let reachedPlaylistEnd = playerItem === avQueuePlayer.queuedAudioTracks.last
+        if reachedPlaylistEnd && !loop {
+            playbackRequested = false
             onStatus(.rmxstatus_PLAYLIST_COMPLETED, trackId: "INVALID", param: nil)
         }
-        
-        if loop && avQueuePlayer.isAtEnd {
+
+        if reachedPlaylistEnd && loop {
             print("Last music in playlist play ended, loop back.")
-            avQueuePlayer.setCurrentIndex(0)
-            startPlayback()
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self,
+                      self.loop,
+                      self.playbackRequested,
+                      !self.avQueuePlayer.queuedAudioTracks.isEmpty else { return }
+                self.avQueuePlayer.setCurrentIndex(0) { [weak self] finished in
+                    guard let self = self,
+                          finished,
+                          self.loop,
+                          self.playbackRequested else { return }
+                    self.startPlayback()
+                }
+            }
         }
     }
 

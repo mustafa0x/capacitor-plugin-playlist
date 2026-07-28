@@ -2,6 +2,24 @@ import XCTest
 import AVFoundation
 @testable import PlaylistPlugin
 
+private final class StatusRecorder: StatusUpdater {
+    var events: [[String: Any]] = []
+
+    func onStatus(_ data: [String: Any]) {
+        events.append(data)
+    }
+
+    func trackIds(for type: RmxAudioStatusMessage) -> [String] {
+        events.compactMap { event in
+            guard let status = event["status"] as? [String: Any],
+                  (status["msgType"] as? NSNumber)?.intValue == type.rawValue else {
+                return nil
+            }
+            return status["trackId"] as? String
+        }
+    }
+}
+
 @MainActor
 class PluginTests: XCTestCase {
 
@@ -24,6 +42,28 @@ class PluginTests: XCTestCase {
         )!
         buffer.frameLength = buffer.frameCapacity
         try file.write(from: buffer)
+    }
+
+    private func localTrack(_ id: String, duration: TimeInterval) throws -> AudioTrack {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("playlist-\(id)-\(UUID().uuidString).wav")
+        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
+        try writeSilentAudio(to: url, duration: duration)
+
+        let track = AudioTrack(url: url)
+        track.trackId = id
+        track.assetUrl = url
+        return track
+    }
+
+    private func waitUntil(
+        timeout: TimeInterval,
+        _ condition: () -> Bool
+    ) async throws {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !condition() && Date() < deadline {
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
     }
 
     func testPlaybackPositionSuppressedWhenWebViewInactive() {
@@ -126,6 +166,66 @@ class PluginTests: XCTestCase {
         XCTAssertThrowsError(try player.selectTrack(index: 2))
         XCTAssertThrowsError(try player.selectTrack(id: "missing"))
         XCTAssertEqual(player.avQueuePlayer.currentAudioTrack?.trackId, "a")
+    }
+
+    func testTrackSelectionHonorsPositionWithoutPlaying() async throws {
+        let player = RmxAudioPlayer()
+        player.setPlaylistItems(
+            [try localTrack("a", duration: 5), try localTrack("b", duration: 5)],
+            options: ["startPaused": true]
+        )
+        try player.selectTrack(id: "b", positionTime: 2)
+
+        try await waitUntil(timeout: 3) {
+            player.avQueuePlayer.currentAudioTrack?.trackId == "b" &&
+                player.avQueuePlayer.currentTime().seconds >= 1.75
+        }
+
+        XCTAssertEqual(player.avQueuePlayer.currentAudioTrack?.trackId, "b")
+        XCTAssertGreaterThanOrEqual(player.avQueuePlayer.currentTime().seconds, 1.75)
+        XCTAssertEqual(player.avQueuePlayer.rate, 0)
+        player.clearAllItems()
+    }
+
+    func testNaturalCompletionAdvancesAndFinishesOnce() async throws {
+        let recorder = StatusRecorder()
+        let player = RmxAudioPlayer()
+        player.statusUpdater = recorder
+        player.initialize()
+        player.setPlaylistItems(
+            [try localTrack("a", duration: 0.4), try localTrack("b", duration: 0.4)],
+            options: ["startPaused": false]
+        )
+
+        try await waitUntil(timeout: 5) {
+            recorder.trackIds(for: .rmxstatus_COMPLETED).count >= 2
+        }
+
+        XCTAssertEqual(recorder.trackIds(for: .rmxstatus_COMPLETED), ["a", "b"])
+        XCTAssertEqual(recorder.trackIds(for: .rmxstatus_PLAYLIST_COMPLETED), ["INVALID"])
+        player.releaseResources()
+    }
+
+    func testNaturalCompletionLoopsWithoutFinishingPlaylist() async throws {
+        let recorder = StatusRecorder()
+        let player = RmxAudioPlayer()
+        player.statusUpdater = recorder
+        player.initialize()
+        player.setLoopAll(true)
+        player.avQueuePlayer.wrapsWhenAtEnd = true
+        player.setPlaylistItems(
+            [try localTrack("loop", duration: 0.4)],
+            options: ["startPaused": false]
+        )
+
+        try await waitUntil(timeout: 5) {
+            recorder.trackIds(for: .rmxstatus_COMPLETED).count >= 2
+        }
+
+        XCTAssertGreaterThanOrEqual(recorder.trackIds(for: .rmxstatus_COMPLETED).count, 2)
+        XCTAssertTrue(recorder.trackIds(for: .rmxstatus_PLAYLIST_COMPLETED).isEmpty)
+        XCTAssertEqual(player.avQueuePlayer.currentAudioTrack?.trackId, "loop")
+        player.releaseResources()
     }
 
     func testInitializeReleaseCanRepeatSafely() {

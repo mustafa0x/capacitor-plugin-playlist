@@ -180,7 +180,7 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater, CAPBridgedPlugin {
         }
         
         do {
-            try audioPlayerImpl.selectTrack(index: index)
+            try audioPlayerImpl.selectTrack(index: index, positionTime: call.getFloat("position"))
             call.resolve();
         } catch {
             call.reject(error.localizedDescription)
@@ -193,7 +193,7 @@ public class PlaylistPlugin: CAPPlugin, StatusUpdater, CAPBridgedPlugin {
         }
         
         do {
-            try audioPlayerImpl.selectTrack(id: id)
+            try audioPlayerImpl.selectTrack(id: id, positionTime: call.getFloat("position"))
             call.resolve();
         } catch {
             call.reject(error.localizedDescription)
