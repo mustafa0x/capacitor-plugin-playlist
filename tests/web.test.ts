@@ -21,10 +21,6 @@ class TestPlaylistWeb extends PlaylistWeb {
     this.audio = audio;
   }
 
-  setCurrentTrack(item: AudioTrack): void {
-    this.currentTrack = item;
-  }
-
   setHlsInstance(hls: { destroy: () => void }): void {
     (this as unknown as { hlsInstance: { destroy: () => void } }).hlsInstance = hls;
   }
@@ -208,9 +204,10 @@ describe('PlaylistWeb Media Session lifecycle', () => {
     expect(destroy).toHaveBeenCalledOnce();
   });
 
-  it('omits missing artwork and clears metadata and handlers on release', async () => {
+  it('publishes selected track metadata and clears it on release', async () => {
     const setActionHandler = vi.fn();
     const mediaSession = { metadata: undefined as unknown, setActionHandler };
+    installAudioDocument();
     vi.stubGlobal('navigator', { mediaSession });
     vi.stubGlobal(
       'MediaMetadata',
@@ -220,11 +217,10 @@ describe('PlaylistWeb Media Session lifecycle', () => {
         }
       },
     );
-    const player = new TestPlaylistWeb();
-    player.setCurrentTrack(track('a'));
+    const player = new PlaylistWeb();
 
-    await player.setMediaSessionRemoteControlMetadata();
-    expect(mediaSession.metadata).toEqual(expect.objectContaining({ artwork: [] }));
+    await player.setPlaylistItems({ items: [track('a')], options: { startPaused: true } });
+    expect(mediaSession.metadata).toMatchObject({ title: 'Track a', artwork: [] });
 
     await player.release();
     expect(mediaSession.metadata).toBeNull();
