@@ -183,12 +183,10 @@ export class PlaylistWeb extends WebPlugin implements PlaylistPlugin {
         );
     }
 
-    seekTo(options: SeekToOptions): Promise<void> {
+    async seekTo(options: SeekToOptions): Promise<void> {
         if (this.audio) {
             this.audio.currentTime = options.position;
-            return Promise.resolve();
         }
-        return Promise.reject();
     }
 
     selectTrackById(options: SelectByIdOptions): Promise<void> {

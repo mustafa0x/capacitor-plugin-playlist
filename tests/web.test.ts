@@ -150,6 +150,12 @@ describe('PlaylistWeb transitions', () => {
     expect(audio.playbackRate).toBe(2);
   });
 
+  it('treats seeking before audio creation as a no-op', async () => {
+    const player = new TestPlaylistWeb();
+
+    await expect(player.seekTo({ position: 12.5 })).resolves.toBeUndefined();
+  });
+
   it('keeps the preferred playback rate after pausing with zero', async () => {
     const audio = { pause: vi.fn(), playbackRate: 1 } as unknown as HTMLAudioElement;
     const player = new TestPlaylistWeb();
